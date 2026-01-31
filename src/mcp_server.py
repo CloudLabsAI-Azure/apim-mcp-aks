@@ -1,6 +1,7 @@
 """
-FastAPI MCP Server - Replacement for Azure Functions
+FastAPI MCP Server
 Implements Model Context Protocol (MCP) with SSE support
+Enhanced with Microsoft Agent Framework for AI agent capabilities
 """
 
 import json
@@ -11,11 +12,20 @@ from typing import Dict, Any, Optional
 from dataclasses import dataclass, asdict
 from datetime import datetime
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 from azure.storage.blob import BlobServiceClient
 from azure.identity import DefaultAzureCredential
 import os
+
+# Microsoft Agent Framework imports
+from agent_framework import ai_function, AIFunction
+from agent_framework.azure import AzureAIAgentClient
+
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv(override=True)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -46,6 +56,94 @@ SNIPPETS_CONTAINER = "snippets"
 
 # In-memory session storage (replace with Redis for production)
 sessions: Dict[str, Dict[str, Any]] = {}
+
+# Microsoft Agent Framework configuration
+FOUNDRY_PROJECT_ENDPOINT = os.getenv("FOUNDRY_PROJECT_ENDPOINT", "")
+FOUNDRY_MODEL_DEPLOYMENT_NAME = os.getenv("FOUNDRY_MODEL_DEPLOYMENT_NAME", "gpt-4o")
+
+
+# Define Agent Framework tools using @ai_function decorator
+@ai_function
+def hello_mcp_tool() -> str:
+    """Hello world MCP tool that returns a greeting message."""
+    return "Hello I am MCPTool!"
+
+
+@ai_function
+def get_snippet_tool(snippetname: str) -> str:
+    """
+    Retrieve a snippet by name from Azure Blob Storage.
+    
+    Args:
+        snippetname: The name of the snippet to retrieve
+    
+    Returns:
+        The content of the snippet
+    """
+    if not blob_service_client:
+        return "Error: Storage not configured"
+    
+    try:
+        blob_client = blob_service_client.get_blob_client(
+            container=SNIPPETS_CONTAINER,
+            blob=f"{snippetname}.json"
+        )
+        blob_data = blob_client.download_blob().readall()
+        return blob_data.decode('utf-8')
+    except Exception as e:
+        logger.error(f"Error retrieving snippet: {e}")
+        return f"Error retrieving snippet: {str(e)}"
+
+
+@ai_function
+def save_snippet_tool(snippetname: str, snippet: str) -> str:
+    """
+    Save a snippet with a name to Azure Blob Storage.
+    
+    Args:
+        snippetname: The name of the snippet
+        snippet: The content of the snippet
+    
+    Returns:
+        Success or error message
+    """
+    if not blob_service_client:
+        return "Error: Storage not configured"
+    
+    try:
+        blob_client = blob_service_client.get_blob_client(
+            container=SNIPPETS_CONTAINER,
+            blob=f"{snippetname}.json"
+        )
+        blob_client.upload_blob(snippet.encode('utf-8'), overwrite=True)
+        return f"Snippet '{snippetname}' saved successfully"
+    except Exception as e:
+        logger.error(f"Error saving snippet: {e}")
+        return f"Error saving snippet: {str(e)}"
+
+
+# Create the AI Agent with tools
+def create_mcp_agent():
+    """Create and configure the MCP AI Agent with Microsoft Agent Framework."""
+    if not FOUNDRY_PROJECT_ENDPOINT:
+        logger.warning("FOUNDRY_PROJECT_ENDPOINT not configured - AI Agent will not be available")
+        return None
+    
+    try:
+        agent_credential = DefaultAzureCredential()
+        client = AzureAIAgentClient(
+            endpoint=FOUNDRY_PROJECT_ENDPOINT,
+            credential=agent_credential,
+        )
+        logger.info("MCP AI Agent Client created successfully")
+        return client
+    except Exception as e:
+        logger.error(f"Error creating AI Agent: {e}")
+        return None
+
+
+# Initialize the AI agent client (will be set on startup)
+mcp_ai_agent = None
 
 
 @dataclass
@@ -382,9 +480,145 @@ async def root():
         "endpoints": {
             "sse": "/runtime/webhooks/mcp/sse",
             "message": "/runtime/webhooks/mcp/message",
-            "health": "/health"
-        }
+            "health": "/health",
+            "agent_chat": "/agent/chat"
+        },
+        "agent_enabled": mcp_ai_agent is not None
     }
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize the AI agent on startup."""
+    global mcp_ai_agent
+    mcp_ai_agent = create_mcp_agent()
+    if mcp_ai_agent:
+        logger.info("AI Agent initialized successfully on startup")
+    else:
+        logger.warning("AI Agent not initialized - check FOUNDRY_PROJECT_ENDPOINT configuration")
+
+
+@app.post("/agent/chat")
+async def agent_chat(request: Request):
+    """
+    Chat endpoint for Microsoft Agent Framework.
+    Processes user messages using the AI agent with tool capabilities.
+    """
+    if mcp_ai_agent is None:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "AI Agent not available",
+                "message": "Configure FOUNDRY_PROJECT_ENDPOINT and install agent-framework packages to enable AI Agent"
+            }
+        )
+    
+    try:
+        body = await request.json()
+        user_message = body.get("message", "")
+        conversation_history = body.get("history", [])
+        
+        if not user_message:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "No message provided"}
+            )
+        
+        # Build messages list for the agent
+        messages = []
+        
+        # Add conversation history
+        for hist_msg in conversation_history:
+            messages.append({
+                "role": hist_msg.get("role", "user"),
+                "content": hist_msg.get("content", "")
+            })
+        
+        # Add current user message
+        messages.append({"role": "user", "content": user_message})
+        
+        # Run the agent
+        response = await mcp_ai_agent.run(messages)
+        
+        # Extract assistant response
+        assistant_responses = []
+        if hasattr(response, 'messages'):
+            for msg in response.messages:
+                if hasattr(msg, 'role') and str(msg.role).lower() == 'assistant':
+                    if hasattr(msg, 'contents'):
+                        for content in msg.contents:
+                            if hasattr(content, 'text'):
+                                assistant_responses.append(content.text)
+                    elif hasattr(msg, 'content'):
+                        assistant_responses.append(str(msg.content))
+        
+        return JSONResponse(content={
+            "response": "\n".join(assistant_responses) if assistant_responses else "No response generated",
+            "message_id": str(uuid.uuid4())
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in agent chat: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Agent error: {str(e)}"}
+        )
+
+
+@app.post("/agent/chat/stream")
+async def agent_chat_stream(request: Request):
+    """
+    Streaming chat endpoint for Microsoft Agent Framework.
+    Returns responses as Server-Sent Events for real-time streaming.
+    """
+    if mcp_ai_agent is None:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "AI Agent not available",
+                "message": "Configure FOUNDRY_PROJECT_ENDPOINT and install agent-framework packages to enable AI Agent"
+            }
+        )
+    
+    try:
+        body = await request.json()
+        user_message = body.get("message", "")
+        
+        if not user_message:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "No message provided"}
+            )
+        
+        messages = [{"role": "user", "content": user_message}]
+        
+        async def generate_stream():
+            try:
+                async for event in mcp_ai_agent.run_stream(messages):
+                    if hasattr(event, 'data') and hasattr(event.data, 'contents'):
+                        for content in event.data.contents:
+                            if hasattr(content, 'text'):
+                                yield f"data: {json.dumps({'text': content.text})}\n\n"
+                yield f"data: {json.dumps({'done': True})}\n\n"
+            except Exception as e:
+                logger.error(f"Streaming error: {e}")
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        
+        return StreamingResponse(
+            generate_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive"
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in agent chat stream: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Agent error: {str(e)}"}
+        )
 
 
 if __name__ == "__main__":

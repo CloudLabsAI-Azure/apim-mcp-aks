@@ -45,6 +45,12 @@ spec:
           value: "https://styzizmglb666e2.blob.core.windows.net"
         - name: AZURE_CLIENT_ID
           value: "976be0f2-f489-48bf-8ed5-9b4ca78c6553"
+        # Microsoft Agent Framework configuration
+        # Set FOUNDRY_PROJECT_ENDPOINT to enable AI Agent capabilities
+        - name: FOUNDRY_PROJECT_ENDPOINT
+          value: ""
+        - name: FOUNDRY_MODEL_DEPLOYMENT_NAME
+          value: "gpt-4o"
         resources:
           requests:
             memory: "256Mi"

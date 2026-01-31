@@ -358,7 +358,6 @@ output AZURE_RESOURCE_GROUP_NAME string = rg.name
 output AZURE_SUBSCRIPTION_ID string = subscription().subscriptionId
 output MCP_PUBLIC_IP_ADDRESS string = mcpPublicIp.outputs.publicIpAddress
 output MCP_PUBLIC_IP_NAME string = 'pip-mcp-${resourceToken}'
-output AKS_NODE_RESOURCE_GROUP string = 'MC_${rg.name}_${abbrs.containerServiceManagedClusters}${resourceToken}_${location}'
 
 // Foundry outputs
 output FOUNDRY_PROJECT_ENDPOINT string = foundry.outputs.projectEndpoint

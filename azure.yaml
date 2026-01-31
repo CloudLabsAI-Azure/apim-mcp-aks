@@ -9,6 +9,7 @@ services:
     project: ./src/
     language: python
     host: aks
+    resourceName: ${AKS_CLUSTER_NAME}
     
 hooks:
   postprovision:

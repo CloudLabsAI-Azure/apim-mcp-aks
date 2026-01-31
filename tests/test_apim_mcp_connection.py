@@ -35,6 +35,7 @@ import json
 import aiohttp
 import sys
 import os
+import pytest
 import webbrowser
 import urllib.parse
 import subprocess
@@ -722,6 +723,7 @@ class MCPSessionManager:
             
         return None
 
+@pytest.mark.asyncio
 async def test_mcp_fixed_session(use_az_token: bool = True):
     """Test MCP with proper SSE session establishment"""
     

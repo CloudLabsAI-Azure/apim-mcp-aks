@@ -18,6 +18,7 @@ import json
 import aiohttp
 import sys
 import os
+import pytest
 import re
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -175,6 +176,7 @@ async def get_mcp_token(session: aiohttp.ClientSession, token_url: str) -> Optio
         return None
 
 
+@pytest.mark.asyncio
 async def test_ask_foundry():
     """Main test function for ask_foundry tool"""
     

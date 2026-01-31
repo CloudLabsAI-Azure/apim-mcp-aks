@@ -3,16 +3,6 @@ kind: Namespace
 metadata:
   name: mcp-server
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: mcp-server-sa
-  namespace: mcp-server
-  annotations:
-    azure.workload.identity/client-id: "976be0f2-f489-48bf-8ed5-9b4ca78c6553"
-  labels:
-    azure.workload.identity/use: "true"
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -35,22 +25,20 @@ spec:
       containers:
       - name: mcp-server
         image: cryzizmglb666e2.azurecr.io/mcp-server:latest
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8000
           name: http
           protocol: TCP
         env:
         - name: AZURE_STORAGE_ACCOUNT_URL
-          value: "https://styzizmglb666e2.blob.core.windows.net"
+          value: "https://styzizmglb666e2.blob.core.windows.net/"
         - name: AZURE_CLIENT_ID
           value: "976be0f2-f489-48bf-8ed5-9b4ca78c6553"
-        # Microsoft Agent Framework configuration
-        # Set FOUNDRY_PROJECT_ENDPOINT to enable AI Agent capabilities
         - name: FOUNDRY_PROJECT_ENDPOINT
-          value: ""
+          value: "https://cog-yzizmglb666e2.services.ai.azure.com/api/projects/proj-default"
         - name: FOUNDRY_MODEL_DEPLOYMENT_NAME
-          value: "gpt-4o"
+          value: "gpt-5.2-chat"
         resources:
           requests:
             memory: "256Mi"
@@ -78,7 +66,7 @@ spec:
           runAsNonRoot: true
           runAsUser: 1000
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: false
+          readOnlyRootFilesystem: true
           capabilities:
             drop:
             - ALL
@@ -99,3 +87,14 @@ spec:
     name: http
   selector:
     app: mcp-server
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mcp-server-sa
+  namespace: mcp-server
+  annotations:
+    azure.workload.identity/client-id: "976be0f2-f489-48bf-8ed5-9b4ca78c6553"
+  labels:
+    azure.workload.identity/use: "true"
+

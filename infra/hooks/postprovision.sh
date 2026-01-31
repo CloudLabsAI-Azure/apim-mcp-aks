@@ -16,11 +16,15 @@ CONTAINER_REG=$(echo $CONTAINER_REGISTRY | tr -d '"')
 STORAGE_URL=$(echo $AZURE_STORAGE_ACCOUNT_URL | tr -d '"')
 MCP_IDENTITY_CLIENT_ID=$(echo $MCP_SERVER_IDENTITY_CLIENT_ID | tr -d '"')
 MCP_PUBLIC_IP=$(echo $MCP_PUBLIC_IP_ADDRESS | tr -d '"')
+FOUNDRY_ENDPOINT=$(echo $FOUNDRY_PROJECT_ENDPOINT | tr -d '"')
+FOUNDRY_MODEL=$(echo $FOUNDRY_MODEL_DEPLOYMENT_NAME | tr -d '"')
 
 echo "  AKS Cluster: $AKS_NAME"
 echo "  Resource Group: $RG_NAME"
 echo "  Container Registry: $CONTAINER_REG"
 echo "  MCP Public IP: $MCP_PUBLIC_IP"
+echo "  Foundry Endpoint: $FOUNDRY_ENDPOINT"
+echo "  Foundry Model: $FOUNDRY_MODEL"
 
 if [ -z "$AKS_NAME" ] || [ -z "$RG_NAME" ]; then
   echo "⚠️  Could not find AKS cluster name or resource group"
@@ -57,6 +61,8 @@ sed -e "s|\${CONTAINER_REGISTRY}|$CONTAINER_REG|g" \
     -e "s|\${IMAGE_TAG}|latest|g" \
     -e "s|\${AZURE_STORAGE_ACCOUNT_URL}|$STORAGE_URL|g" \
     -e "s|\${AZURE_CLIENT_ID}|$MCP_IDENTITY_CLIENT_ID|g" \
+    -e "s|\${FOUNDRY_PROJECT_ENDPOINT}|$FOUNDRY_ENDPOINT|g" \
+    -e "s|\${FOUNDRY_MODEL_DEPLOYMENT_NAME}|$FOUNDRY_MODEL|g" \
     ./k8s/mcp-server-deployment.yaml > ./k8s/mcp-server-deployment-configured.yaml
 echo "  ✅ Configured mcp-server-deployment-configured.yaml"
 

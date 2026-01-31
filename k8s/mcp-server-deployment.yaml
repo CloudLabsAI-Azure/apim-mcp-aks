@@ -35,6 +35,10 @@ spec:
           value: "${AZURE_STORAGE_ACCOUNT_URL}"
         - name: AZURE_CLIENT_ID
           value: "${AZURE_CLIENT_ID}"
+        - name: FOUNDRY_PROJECT_ENDPOINT
+          value: "${FOUNDRY_PROJECT_ENDPOINT}"
+        - name: FOUNDRY_MODEL_DEPLOYMENT_NAME
+          value: "${FOUNDRY_MODEL_DEPLOYMENT_NAME}"
         resources:
           requests:
             memory: "256Mi"

@@ -28,6 +28,13 @@ param mcpEntraApplicationUniqueName string = ''
 param existingEntraAppId string = ''
 param disableLocalAuth bool = true
 
+// Foundry AI configuration
+param foundryName string = ''
+param foundryModelDeploymentName string = 'gpt-5.2-chat'
+param foundryModelName string = 'gpt-5.2-chat'
+param foundryModelVersion string = '2025-12-11'
+param foundryModelCapacity int = 10
+
 // MCP Client APIM gateway specific variables
 
 var oauth_scopes = 'openid https://graph.microsoft.com/.default'
@@ -256,6 +263,55 @@ module storagePrivateEndpoint 'app/storage-PrivateEndpoint.bicep' = if (vnetEnab
   ]
 }
 
+// Azure AI Foundry deployment
+var foundryResourceName = !empty(foundryName) ? foundryName : '${abbrs.cognitiveServicesAccounts}${resourceToken}'
+var bingResourceName = 'bing-${resourceToken}'
+
+module foundry './core/ai/foundry.bicep' = {
+  name: 'foundry'
+  scope: rg
+  params: {
+    foundryName: foundryResourceName
+    bingName: bingResourceName
+    location: location
+    modelDeploymentName: foundryModelDeploymentName
+    modelName: foundryModelName
+    modelVersion: foundryModelVersion
+    modelCapacity: foundryModelCapacity
+    tags: tags
+    enablePrivateEndpoint: vnetEnabled
+    publicNetworkAccess: vnetEnabled ? 'Disabled' : 'Enabled'
+  }
+}
+
+// Private endpoint for Foundry
+module foundryPrivateEndpoint 'app/foundry-PrivateEndpoint.bicep' = if (vnetEnabled) {
+  name: 'foundryPrivateEndpoint'
+  scope: rg
+  params: {
+    location: location
+    tags: tags
+    virtualNetworkName: serviceVirtualNetworkName
+    subnetName: vnetEnabled ? serviceVirtualNetworkPrivateEndpointSubnetName : ''
+    resourceName: foundry.outputs.foundryAccountName
+  }
+  dependsOn: [
+    serviceVirtualNetwork
+  ]
+}
+
+// Role assignment: Cognitive Services OpenAI User for MCP server identity
+var CognitiveServicesOpenAIUser = '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd'
+module foundryRoleAssignmentMcp './app/foundry-RoleAssignment.bicep' = {
+  name: 'foundryRoleAssignmentMcp'
+  scope: rg
+  params: {
+    foundryAccountName: foundry.outputs.foundryAccountName
+    roleDefinitionID: CognitiveServicesOpenAIUser
+    principalID: mcpUserAssignedIdentity.outputs.identityPrincipalId
+  }
+}
+
 // Monitor application with Azure Monitor
 module monitoring './core/monitor/monitoring.bicep' = {
   name: 'monitoring'
@@ -303,4 +359,9 @@ output AZURE_SUBSCRIPTION_ID string = subscription().subscriptionId
 output MCP_PUBLIC_IP_ADDRESS string = mcpPublicIp.outputs.publicIpAddress
 output MCP_PUBLIC_IP_NAME string = 'pip-mcp-${resourceToken}'
 output AKS_NODE_RESOURCE_GROUP string = 'MC_${rg.name}_${abbrs.containerServiceManagedClusters}${resourceToken}_${location}'
+
+// Foundry outputs
+output FOUNDRY_PROJECT_ENDPOINT string = foundry.outputs.projectEndpoint
+output FOUNDRY_MODEL_DEPLOYMENT_NAME string = foundryModelDeploymentName
+output FOUNDRY_ACCOUNT_NAME string = foundry.outputs.foundryAccountName
 

@@ -59,7 +59,7 @@ sessions: Dict[str, Dict[str, Any]] = {}
 
 # Microsoft Agent Framework configuration
 FOUNDRY_PROJECT_ENDPOINT = os.getenv("FOUNDRY_PROJECT_ENDPOINT", "")
-FOUNDRY_MODEL_DEPLOYMENT_NAME = os.getenv("FOUNDRY_MODEL_DEPLOYMENT_NAME", "gpt-4o")
+FOUNDRY_MODEL_DEPLOYMENT_NAME = os.getenv("FOUNDRY_MODEL_DEPLOYMENT_NAME", "gpt-5.2-chat")
 
 
 # Define Agent Framework tools using @ai_function decorator
@@ -120,6 +120,50 @@ def save_snippet_tool(snippetname: str, snippet: str) -> str:
     except Exception as e:
         logger.error(f"Error saving snippet: {e}")
         return f"Error saving snippet: {str(e)}"
+
+
+@ai_function
+def ask_foundry_tool(question: str) -> str:
+    """
+    Ask a question and get an answer using the Azure AI Foundry model.
+    
+    Args:
+        question: The question to ask the AI model
+    
+    Returns:
+        The AI model's response to the question
+    """
+    if not FOUNDRY_PROJECT_ENDPOINT:
+        return "Error: Foundry endpoint not configured"
+    
+    try:
+        from openai import AzureOpenAI
+        
+        credential = DefaultAzureCredential()
+        # Get a token for Azure Cognitive Services
+        token = credential.get_token("https://cognitiveservices.azure.com/.default")
+        
+        # Extract the base endpoint (remove /api/projects/proj-default if present)
+        # Use the services.ai.azure.com endpoint directly
+        base_endpoint = FOUNDRY_PROJECT_ENDPOINT.split('/api/projects')[0] if '/api/projects' in FOUNDRY_PROJECT_ENDPOINT else FOUNDRY_PROJECT_ENDPOINT
+        
+        client = AzureOpenAI(
+            azure_endpoint=base_endpoint,
+            api_key=token.token,
+            api_version="2024-02-15-preview"
+        )
+        
+        response = client.chat.completions.create(
+            model=FOUNDRY_MODEL_DEPLOYMENT_NAME,
+            messages=[{"role": "user", "content": question}]
+        )
+        
+        if response.choices and len(response.choices) > 0:
+            return response.choices[0].message.content
+        return "No response generated"
+    except Exception as e:
+        logger.error(f"Error calling Foundry model: {e}")
+        return f"Error calling Foundry model: {str(e)}"
 
 
 # Create the AI Agent with tools
@@ -202,6 +246,20 @@ TOOLS = [
                 }
             },
             "required": ["snippetname", "snippet"]
+        }
+    ),
+    MCPTool(
+        name="ask_foundry",
+        description="Ask a question and get an answer using the Azure AI Foundry model.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "question": {
+                    "type": "string",
+                    "description": "The question to ask the AI model"
+                }
+            },
+            "required": ["question"]
         }
     )
 ]
@@ -292,6 +350,61 @@ async def execute_tool(tool_name: str, arguments: Dict[str, Any]) -> MCPToolResu
                 logger.error(f"Error saving snippet: {e}")
                 return MCPToolResult(
                     content=[{"type": "text", "text": f"Error saving snippet: {str(e)}"}],
+                    isError=True
+                )
+        
+        elif tool_name == "ask_foundry":
+            question = arguments.get("question")
+            if not question:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "No question provided"}],
+                    isError=True
+                )
+            
+            if not FOUNDRY_PROJECT_ENDPOINT:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "Foundry endpoint not configured"}],
+                    isError=True
+                )
+            
+            try:
+                from openai import AzureOpenAI
+                
+                credential = DefaultAzureCredential()
+                # Get a token for Azure Cognitive Services
+                token = credential.get_token("https://cognitiveservices.azure.com/.default")
+                
+                # Extract the base endpoint (remove /api/projects/proj-default if present)
+                # Use the services.ai.azure.com endpoint directly
+                base_endpoint = FOUNDRY_PROJECT_ENDPOINT.split('/api/projects')[0] if '/api/projects' in FOUNDRY_PROJECT_ENDPOINT else FOUNDRY_PROJECT_ENDPOINT
+                
+                logger.info(f"Using Foundry endpoint: {base_endpoint}")
+                
+                client = AzureOpenAI(
+                    azure_endpoint=base_endpoint,
+                    api_key=token.token,
+                    api_version="2024-02-15-preview"
+                )
+                
+                response = client.chat.completions.create(
+                    model=FOUNDRY_MODEL_DEPLOYMENT_NAME,
+                    messages=[{"role": "user", "content": question}]
+                )
+                
+                answer = "No response generated"
+                if response.choices and len(response.choices) > 0:
+                    answer = response.choices[0].message.content
+                
+                return MCPToolResult(
+                    content=[{
+                        "type": "text",
+                        "text": answer
+                    }]
+                )
+            except Exception as e:
+                logger.error(f"Error calling Foundry model: {e}")
+                return MCPToolResult(
+                    content=[{"type": "text", "text": f"Error calling Foundry model: {str(e)}"}],
                     isError=True
                 )
         

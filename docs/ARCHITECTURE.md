@@ -6,12 +6,13 @@ This document provides comprehensive Mermaid diagrams for the AI Agents with AKS
 
 1. [Component Architecture Diagram](#component-architecture-diagram)
 2. [Detailed Component Diagram](#detailed-component-diagram)
-3. [Deployment Architecture](#deployment-architecture)
-4. [Sequence Diagrams](#sequence-diagrams)
+3. [Memory Architecture](#memory-architecture)
+4. [Deployment Architecture](#deployment-architecture)
+5. [Sequence Diagrams](#sequence-diagrams)
    - [Agent Authentication Flow](#agent-authentication-flow)
    - [MCP Tool Discovery](#mcp-tool-discovery)
    - [MCP Tool Execution](#mcp-tool-execution)
-5. [Activity Diagrams](#activity-diagrams)
+6. [Activity Diagrams](#activity-diagrams)
    - [Deployment Process](#deployment-process-activity-diagram)
    - [Request Processing](#request-processing-activity-diagram)
 
@@ -177,6 +178,168 @@ graph TB
     style FastAPI1 fill:#e8f5e9
     style FastAPI2 fill:#e8f5e9
 ```
+
+---
+
+## Memory Architecture
+
+The MCP Agent uses a composite memory system combining short-term session memory with long-term persistent memory for semantic reasoning:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      CompositeMemory                            │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────┐    ┌─────────────────────────────────┐ │
+│  │  Short-Term Memory  │    │       Long-Term Memory          │ │
+│  │    (CosmosDB)       │    │   (AI Search / FoundryIQ)       │ │
+│  │  - Session-based    │    │   - Persistent storage          │ │
+│  │  - TTL support      │    │   - Cross-session retrieval     │ │
+│  │  - Fast access      │    │   - Hybrid search               │ │
+│  └─────────────────────┘    └─────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Memory Components
+
+```mermaid
+graph TB
+    subgraph "Agent Layer"
+        Agent[MCP Agent<br/>mcp_agents.py]
+        Tools[MCP Tools<br/>store_memory, recall_memory]
+    end
+
+    subgraph "Memory Abstraction Layer"
+        CompositeMemory[CompositeMemory<br/>Unified Memory Interface]
+        
+        subgraph "Short-Term Memory"
+            CosmosMemory[CosmosDBShortTermMemory<br/>Session-based storage]
+            STMFeatures[Features:<br/>• TTL support<br/>• Partition by session_id<br/>• Vector similarity search]
+        end
+        
+        subgraph "Long-Term Memory"
+            AISearchMemory[AISearchLongTermMemory<br/>Persistent storage]
+            FoundryIQ[FoundryIQMemory<br/>Knowledge graph]
+            LTMFeatures[Features:<br/>• Cross-session retrieval<br/>• Hybrid search<br/>• Entity extraction]
+        end
+    end
+
+    subgraph "Storage Layer"
+        subgraph "Azure CosmosDB"
+            ShortTermContainer[short_term_memory<br/>Container]
+            TasksContainer[tasks Container]
+            PlansContainer[plans Container]
+        end
+        
+        subgraph "Azure AI Search"
+            SearchIndex[long_term_memory<br/>Search Index]
+        end
+        
+        subgraph "Azure AI Foundry"
+            EmbeddingModel[text-embedding-3-large<br/>3072 dimensions]
+            ChatModel[gpt-5.2-chat<br/>Intent Analysis]
+        end
+    end
+
+    Agent --> Tools
+    Tools --> CompositeMemory
+    CompositeMemory --> CosmosMemory
+    CompositeMemory --> AISearchMemory
+    CompositeMemory --> FoundryIQ
+    
+    CosmosMemory --> ShortTermContainer
+    CosmosMemory --> TasksContainer
+    CosmosMemory --> PlansContainer
+    
+    AISearchMemory --> SearchIndex
+    
+    CosmosMemory --> EmbeddingModel
+    AISearchMemory --> EmbeddingModel
+    Agent --> ChatModel
+
+    style Agent fill:#e1f5ff
+    style CompositeMemory fill:#fff4e6
+    style CosmosMemory fill:#e8f5e9
+    style AISearchMemory fill:#fce4ec
+    style FoundryIQ fill:#f3e5f5
+```
+
+### Memory Flow
+
+```mermaid
+sequenceDiagram
+    participant Agent as MCP Agent
+    participant CM as CompositeMemory
+    participant STM as Short-Term Memory<br/>(CosmosDB)
+    participant LTM as Long-Term Memory<br/>(AI Search)
+    participant Embed as Embedding Model
+
+    Note over Agent,Embed: Store Memory Flow
+    Agent->>CM: store(content, session_id)
+    CM->>Embed: get_embedding(content)
+    Embed-->>CM: embedding vector (3072 dims)
+    CM->>STM: store(entry + embedding)
+    STM-->>CM: entry_id
+    
+    alt Promote to Long-Term
+        CM->>LTM: store(entry + embedding)
+        LTM-->>CM: entry_id
+    end
+    CM-->>Agent: stored entry_id
+
+    Note over Agent,Embed: Recall Memory Flow
+    Agent->>CM: search(query, session_id)
+    CM->>Embed: get_embedding(query)
+    Embed-->>CM: query embedding
+    
+    par Search Short-Term
+        CM->>STM: vector_search(embedding)
+        STM-->>CM: short-term results
+    and Search Long-Term
+        CM->>LTM: hybrid_search(embedding, text)
+        LTM-->>CM: long-term results
+    end
+    
+    CM->>CM: merge & deduplicate results
+    CM-->>Agent: ranked memory results
+```
+
+### Memory Types
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| `TASK` | Task descriptions with embeddings | Semantic task matching |
+| `PLAN` | Generated action plans | Plan reuse and learning |
+| `CONVERSATION` | Chat messages | Session history |
+| `CONTEXT` | General context | User preferences, state |
+| `EMBEDDING` | Raw embeddings | Vector operations |
+
+### CosmosDB Container Schema
+
+**short_term_memory container:**
+```json
+{
+  "id": "uuid",
+  "content": "memory content text",
+  "memory_type": "context|conversation|task|plan",
+  "embedding": [0.123, ...],  // 3072 dimensions
+  "session_id": "partition key",
+  "user_id": "optional user identifier",
+  "metadata": {},
+  "created_at": "ISO timestamp",
+  "updated_at": "ISO timestamp",
+  "ttl": 3600  // Time-to-live in seconds
+}
+```
+
+### MCP Memory Tools
+
+| Tool | Description |
+|------|-------------|
+| `store_memory` | Store content with embedding in short-term memory |
+| `recall_memory` | Semantic search for relevant memories |
+| `get_session_history` | Retrieve conversation history |
+| `clear_session_memory` | Clear session memory |
+| `next_best_action` | Analyze task, find similar tasks, generate plan |
 
 ---
 

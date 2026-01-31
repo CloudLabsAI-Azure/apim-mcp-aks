@@ -1,0 +1,41 @@
+"""
+Memory Provider Module for MCP Server
+Provides short-term (CosmosDB) and long-term (AI Search, FoundryIQ) memory abstractions
+
+Architecture:
+┌─────────────────────────────────────────────────────────────────┐
+│                      CompositeMemory                            │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────┐    ┌─────────────────────────────────┐ │
+│  │  Short-Term Memory  │    │       Long-Term Memory          │ │
+│  │    (CosmosDB)       │    │   (AI Search / FoundryIQ)       │ │
+│  │  - Session-based    │    │   - Persistent storage          │ │
+│  │  - TTL support      │    │   - Cross-session retrieval     │ │
+│  │  - Fast access      │    │   - Hybrid search               │ │
+│  └─────────────────────┘    └─────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+"""
+
+from .base import (
+    MemoryProvider,
+    MemoryEntry,
+    MemorySearchResult,
+    MemoryType,
+    CompositeMemory,
+)
+from .cosmos_memory import CosmosDBShortTermMemory
+from .aisearch_memory import AISearchLongTermMemory, FoundryIQMemory
+
+__all__ = [
+    # Base classes
+    "MemoryProvider",
+    "MemoryEntry",
+    "MemorySearchResult",
+    "MemoryType",
+    "CompositeMemory",
+    # Short-term memory
+    "CosmosDBShortTermMemory",
+    # Long-term memory (stubs - to be implemented)
+    "AISearchLongTermMemory",
+    "FoundryIQMemory",
+]

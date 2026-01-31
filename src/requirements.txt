@@ -13,5 +13,11 @@ agent-framework-core==1.0.0b260107
 # Azure OpenAI SDK for Foundry model calls
 openai>=1.0.0
 
+# Azure CosmosDB for task and plan storage
+azure-cosmos>=4.7.0
+
+# NumPy for vector operations (cosine similarity)
+numpy>=1.24.0
+
 # Environment management
 python-dotenv>=1.0.0

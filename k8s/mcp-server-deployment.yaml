@@ -39,6 +39,12 @@ spec:
           value: "${FOUNDRY_PROJECT_ENDPOINT}"
         - name: FOUNDRY_MODEL_DEPLOYMENT_NAME
           value: "${FOUNDRY_MODEL_DEPLOYMENT_NAME}"
+        - name: EMBEDDING_MODEL_DEPLOYMENT_NAME
+          value: "${EMBEDDING_MODEL_DEPLOYMENT_NAME}"
+        - name: COSMOSDB_ENDPOINT
+          value: "${COSMOSDB_ENDPOINT}"
+        - name: COSMOSDB_DATABASE_NAME
+          value: "${COSMOSDB_DATABASE_NAME}"
         resources:
           requests:
             memory: "256Mi"

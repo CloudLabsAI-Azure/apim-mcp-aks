@@ -18,6 +18,9 @@ MCP_IDENTITY_CLIENT_ID=$(echo $MCP_SERVER_IDENTITY_CLIENT_ID | tr -d '"')
 MCP_PUBLIC_IP=$(echo $MCP_PUBLIC_IP_ADDRESS | tr -d '"')
 FOUNDRY_ENDPOINT=$(echo $FOUNDRY_PROJECT_ENDPOINT | tr -d '"')
 FOUNDRY_MODEL=$(echo $FOUNDRY_MODEL_DEPLOYMENT_NAME | tr -d '"')
+EMBEDDING_MODEL=$(echo $EMBEDDING_MODEL_DEPLOYMENT_NAME | tr -d '"')
+COSMOS_ENDPOINT=$(echo $COSMOSDB_ENDPOINT | tr -d '"')
+COSMOS_DATABASE=$(echo $COSMOSDB_DATABASE_NAME | tr -d '"')
 
 echo "  AKS Cluster: $AKS_NAME"
 echo "  Resource Group: $RG_NAME"
@@ -25,6 +28,9 @@ echo "  Container Registry: $CONTAINER_REG"
 echo "  MCP Public IP: $MCP_PUBLIC_IP"
 echo "  Foundry Endpoint: $FOUNDRY_ENDPOINT"
 echo "  Foundry Model: $FOUNDRY_MODEL"
+echo "  Embedding Model: $EMBEDDING_MODEL"
+echo "  CosmosDB Endpoint: $COSMOS_ENDPOINT"
+echo "  CosmosDB Database: $COSMOS_DATABASE"
 
 if [ -z "$AKS_NAME" ] || [ -z "$RG_NAME" ]; then
   echo "⚠️  Could not find AKS cluster name or resource group"
@@ -63,6 +69,9 @@ sed -e "s|\${CONTAINER_REGISTRY}|$CONTAINER_REG|g" \
     -e "s|\${AZURE_CLIENT_ID}|$MCP_IDENTITY_CLIENT_ID|g" \
     -e "s|\${FOUNDRY_PROJECT_ENDPOINT}|$FOUNDRY_ENDPOINT|g" \
     -e "s|\${FOUNDRY_MODEL_DEPLOYMENT_NAME}|$FOUNDRY_MODEL|g" \
+    -e "s|\${EMBEDDING_MODEL_DEPLOYMENT_NAME}|$EMBEDDING_MODEL|g" \
+    -e "s|\${COSMOSDB_ENDPOINT}|$COSMOS_ENDPOINT|g" \
+    -e "s|\${COSMOSDB_DATABASE_NAME}|$COSMOS_DATABASE|g" \
     ./k8s/mcp-server-deployment.yaml > ./k8s/mcp-server-deployment-configured.yaml
 echo "  ✅ Configured mcp-server-deployment-configured.yaml"
 

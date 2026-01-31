@@ -35,6 +35,16 @@ param foundryModelName string = 'gpt-5.2-chat'
 param foundryModelVersion string = '2025-12-11'
 param foundryModelCapacity int = 10
 
+// Embeddings model configuration
+param embeddingModelDeploymentName string = 'text-embedding-3-large'
+param embeddingModelName string = 'text-embedding-3-large'
+param embeddingModelVersion string = '1'
+param embeddingModelCapacity int = 10
+
+// CosmosDB configuration
+param cosmosDbAccountName string = ''
+param cosmosDatabaseName string = 'mcpdb'
+
 // MCP Client APIM gateway specific variables
 
 var oauth_scopes = 'openid https://graph.microsoft.com/.default'
@@ -278,6 +288,10 @@ module foundry './core/ai/foundry.bicep' = {
     modelName: foundryModelName
     modelVersion: foundryModelVersion
     modelCapacity: foundryModelCapacity
+    embeddingModelDeploymentName: embeddingModelDeploymentName
+    embeddingModelName: embeddingModelName
+    embeddingModelVersion: embeddingModelVersion
+    embeddingModelCapacity: embeddingModelCapacity
     tags: tags
     enablePrivateEndpoint: vnetEnabled
     publicNetworkAccess: vnetEnabled ? 'Disabled' : 'Enabled'
@@ -308,6 +322,174 @@ module foundryRoleAssignmentMcp './app/foundry-RoleAssignment.bicep' = {
   params: {
     foundryAccountName: foundry.outputs.foundryAccountName
     roleDefinitionID: CognitiveServicesOpenAIUser
+    principalID: mcpUserAssignedIdentity.outputs.identityPrincipalId
+  }
+}
+
+// =========================================
+// CosmosDB NoSQL for Task and Plan Storage
+// =========================================
+
+var cosmosResourceName = !empty(cosmosDbAccountName) ? cosmosDbAccountName : '${abbrs.documentDBDatabaseAccounts}${resourceToken}'
+
+// CosmosDB Account with Vector Search enabled for embeddings
+module cosmosAccount './core/cosmos-db/nosql/account.bicep' = {
+  name: 'cosmosAccount'
+  scope: rg
+  params: {
+    name: cosmosResourceName
+    location: location
+    tags: tags
+    enableServerless: true
+    enableVectorSearch: true
+    disableKeyBasedAuth: true
+  }
+}
+
+// CosmosDB Database
+module cosmosDatabase './core/cosmos-db/nosql/database.bicep' = {
+  name: 'cosmosDatabase'
+  scope: rg
+  params: {
+    name: cosmosDatabaseName
+    parentAccountName: cosmosAccount.outputs.name
+    tags: tags
+  }
+}
+
+// Container for storing tasks with embeddings
+module cosmosTasksContainer './core/cosmos-db/nosql/container.bicep' = {
+  name: 'cosmosTasksContainer'
+  scope: rg
+  params: {
+    name: 'tasks'
+    parentAccountName: cosmosAccount.outputs.name
+    parentDatabaseName: cosmosDatabase.outputs.name
+    partitionKeyPaths: ['/id']
+    tags: tags
+    vectorEmbeddingPolicy: {
+      vectorEmbeddings: [
+        {
+          path: '/embedding'
+          dataType: 'float32'
+          dimensions: 3072
+          distanceFunction: 'cosine'
+        }
+      ]
+    }
+    indexingPolicy: {
+      automatic: true
+      indexingMode: 'consistent'
+      includedPaths: [
+        {
+          path: '/*'
+        }
+      ]
+      excludedPaths: [
+        {
+          path: '/embedding/*'
+        }
+      ]
+      vectorIndexes: [
+        {
+          path: '/embedding'
+          type: 'quantizedFlat'
+        }
+      ]
+    }
+  }
+}
+
+// Container for storing planned steps
+module cosmosPlansContainer './core/cosmos-db/nosql/container.bicep' = {
+  name: 'cosmosPlansContainer'
+  scope: rg
+  params: {
+    name: 'plans'
+    parentAccountName: cosmosAccount.outputs.name
+    parentDatabaseName: cosmosDatabase.outputs.name
+    partitionKeyPaths: ['/taskId']
+    tags: tags
+    indexingPolicy: {
+      automatic: true
+      indexingMode: 'consistent'
+      includedPaths: [
+        {
+          path: '/*'
+        }
+      ]
+    }
+  }
+}
+
+// Container for short-term memory with TTL support
+module cosmosShortTermMemoryContainer './core/cosmos-db/nosql/container.bicep' = {
+  name: 'cosmosShortTermMemoryContainer'
+  scope: rg
+  params: {
+    name: 'short_term_memory'
+    parentAccountName: cosmosAccount.outputs.name
+    parentDatabaseName: cosmosDatabase.outputs.name
+    partitionKeyPaths: ['/session_id']
+    tags: tags
+    vectorEmbeddingPolicy: {
+      vectorEmbeddings: [
+        {
+          path: '/embedding'
+          dataType: 'float32'
+          dimensions: 3072
+          distanceFunction: 'cosine'
+        }
+      ]
+    }
+    indexingPolicy: {
+      automatic: true
+      indexingMode: 'consistent'
+      includedPaths: [
+        {
+          path: '/*'
+        }
+      ]
+      excludedPaths: [
+        {
+          path: '/embedding/*'
+        }
+      ]
+      vectorIndexes: [
+        {
+          path: '/embedding'
+          type: 'quantizedFlat'
+        }
+      ]
+    }
+  }
+}
+
+// Private endpoint for CosmosDB
+module cosmosPrivateEndpoint 'app/cosmos-PrivateEndpoint.bicep' = if (vnetEnabled) {
+  name: 'cosmosPrivateEndpoint'
+  scope: rg
+  params: {
+    location: location
+    tags: tags
+    virtualNetworkName: serviceVirtualNetworkName
+    subnetName: vnetEnabled ? serviceVirtualNetworkPrivateEndpointSubnetName : ''
+    resourceName: cosmosAccount.outputs.name
+  }
+  dependsOn: [
+    serviceVirtualNetwork
+  ]
+}
+
+// RBAC: Cosmos DB Built-in Data Contributor role for MCP server identity
+// Built-in role ID: 00000000-0000-0000-0000-000000000002
+var CosmosDBDataContributor = '00000000-0000-0000-0000-000000000002'
+module cosmosRoleAssignmentMcp './app/cosmos-RoleAssignment.bicep' = {
+  name: 'cosmosRoleAssignmentMcp'
+  scope: rg
+  params: {
+    cosmosAccountName: cosmosAccount.outputs.name
+    roleDefinitionID: CosmosDBDataContributor
     principalID: mcpUserAssignedIdentity.outputs.identityPrincipalId
   }
 }
@@ -363,4 +545,9 @@ output MCP_PUBLIC_IP_NAME string = 'pip-mcp-${resourceToken}'
 output FOUNDRY_PROJECT_ENDPOINT string = foundry.outputs.projectEndpoint
 output FOUNDRY_MODEL_DEPLOYMENT_NAME string = foundryModelDeploymentName
 output FOUNDRY_ACCOUNT_NAME string = foundry.outputs.foundryAccountName
+output EMBEDDING_MODEL_DEPLOYMENT_NAME string = embeddingModelDeploymentName
 
+// CosmosDB outputs
+output COSMOSDB_ENDPOINT string = cosmosAccount.outputs.endpoint
+output COSMOSDB_DATABASE_NAME string = cosmosDatabaseName
+output COSMOSDB_ACCOUNT_NAME string = cosmosAccount.outputs.name

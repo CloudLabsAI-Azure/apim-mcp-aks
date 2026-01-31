@@ -19,6 +19,18 @@ param modelVersion string
 @description('Model capacity')
 param modelCapacity int
 
+@description('Embedding model deployment name')
+param embeddingModelDeploymentName string = 'text-embedding-3-large'
+
+@description('Embedding model name')
+param embeddingModelName string = 'text-embedding-3-large'
+
+@description('Embedding model version')
+param embeddingModelVersion string = '1'
+
+@description('Embedding model capacity')
+param embeddingModelCapacity int = 10
+
 @description('Tags for resources')
 param tags object = {}
 
@@ -100,6 +112,29 @@ resource modelDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025-
   }
 }
 
+// Deploy text-embedding-3-large model for semantic similarity
+resource embeddingModelDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025-06-01' = {
+  parent: foundryAccount
+  name: embeddingModelDeploymentName
+  sku: {
+    name: 'Standard'
+    capacity: embeddingModelCapacity
+  }
+  properties: {
+    model: {
+      format: 'OpenAI'
+      name: embeddingModelName
+      version: embeddingModelVersion
+    }
+    versionUpgradeOption: 'OnceNewDefaultVersionAvailable'
+    currentCapacity: embeddingModelCapacity
+    raiPolicyName: 'Microsoft.DefaultV2'
+  }
+  dependsOn: [
+    modelDeployment
+  ]
+}
+
 // Create default project
 resource defaultProject 'Microsoft.CognitiveServices/accounts/projects@2025-06-01' = {
   parent: foundryAccount
@@ -148,3 +183,4 @@ output bingConnectionId string = bingConnection.id
 output bingConnectionName string = bingConnection.name
 output bingResourceId string = bingGrounding.id
 output modelDeploymentName string = modelDeployment.name
+output embeddingModelDeploymentName string = embeddingModelDeployment.name

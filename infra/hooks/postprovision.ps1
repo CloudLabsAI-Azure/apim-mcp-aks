@@ -15,6 +15,9 @@ $mcpIdentityClientId = $envValues.MCP_SERVER_IDENTITY_CLIENT_ID.Trim('"')
 $mcpPublicIpAddress = $envValues.MCP_PUBLIC_IP_ADDRESS.Trim('"')
 $foundryProjectEndpoint = $envValues.FOUNDRY_PROJECT_ENDPOINT.Trim('"')
 $foundryModelDeploymentName = $envValues.FOUNDRY_MODEL_DEPLOYMENT_NAME.Trim('"')
+$embeddingModelDeploymentName = $envValues.EMBEDDING_MODEL_DEPLOYMENT_NAME.Trim('"')
+$cosmosDbEndpoint = $envValues.COSMOSDB_ENDPOINT.Trim('"')
+$cosmosDbDatabaseName = $envValues.COSMOSDB_DATABASE_NAME.Trim('"')
 
 Write-Host "  AKS Cluster: $aksName" -ForegroundColor White
 Write-Host "  Resource Group: $rgName" -ForegroundColor White
@@ -22,6 +25,9 @@ Write-Host "  Container Registry: $containerRegistry" -ForegroundColor White
 Write-Host "  MCP Public IP: $mcpPublicIpAddress" -ForegroundColor White
 Write-Host "  Foundry Endpoint: $foundryProjectEndpoint" -ForegroundColor White
 Write-Host "  Foundry Model: $foundryModelDeploymentName" -ForegroundColor White
+Write-Host "  Embedding Model: $embeddingModelDeploymentName" -ForegroundColor White
+Write-Host "  CosmosDB Endpoint: $cosmosDbEndpoint" -ForegroundColor White
+Write-Host "  CosmosDB Database: $cosmosDbDatabaseName" -ForegroundColor White
 
 if (-not $aksName -or -not $rgName) {
   Write-Host "⚠️  Could not find AKS cluster name or resource group" -ForegroundColor Yellow
@@ -57,7 +63,10 @@ $configuredDeployment = $deploymentTemplate `
   -replace '\$\{AZURE_STORAGE_ACCOUNT_URL\}', $storageUrl `
   -replace '\$\{AZURE_CLIENT_ID\}', $mcpIdentityClientId `
   -replace '\$\{FOUNDRY_PROJECT_ENDPOINT\}', $foundryProjectEndpoint `
-  -replace '\$\{FOUNDRY_MODEL_DEPLOYMENT_NAME\}', $foundryModelDeploymentName
+  -replace '\$\{FOUNDRY_MODEL_DEPLOYMENT_NAME\}', $foundryModelDeploymentName `
+  -replace '\$\{EMBEDDING_MODEL_DEPLOYMENT_NAME\}', $embeddingModelDeploymentName `
+  -replace '\$\{COSMOSDB_ENDPOINT\}', $cosmosDbEndpoint `
+  -replace '\$\{COSMOSDB_DATABASE_NAME\}', $cosmosDbDatabaseName
 $configuredDeployment | Out-File -FilePath "./k8s/mcp-server-deployment-configured.yaml" -Encoding utf8
 Write-Host "  ✅ Configured mcp-server-deployment-configured.yaml" -ForegroundColor Green
 

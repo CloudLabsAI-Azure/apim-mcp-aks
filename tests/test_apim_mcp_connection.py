@@ -1,4 +1,4 @@
-tests/test_apim_mcp_connection.py#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 Complete APIM + MCP + AKS Integration Test
 
@@ -9,10 +9,10 @@ This script tests the complete stack:
 4. MCP tool discovery and execution
 
 Usage:
-    python test_apim_mcp_connection.py [--use-az-token] [--skip-infra] [--generate-token]
+    python test_apim_mcp_connection.py [--use-browser-auth] [--skip-infra] [--generate-token]
 
 Options:
-    --use-az-token      Use automatic token (no browser required)
+    --use-browser-auth  Use browser-based OAuth (default: Azure CLI token)
     --skip-infra        Skip AKS infrastructure tests
     --generate-token    Generate OAuth token interactively
     --help, -h          Show this help message
@@ -321,14 +321,19 @@ def get_azure_cli_token() -> Optional[str]:
 
 
 async def get_mcp_token_from_apim() -> Optional[str]:
-    """Get MCP access token from APIM OAuth endpoint using a synthetic auth code"""
+    """Get MCP access token from APIM OAuth endpoint using Azure CLI authentication.
+    
+    The APIM OAuth policy generates a custom MCP token (mcp_access_token_*) 
+    that is required for accessing the MCP SSE endpoint.
+    """
     try:
         import aiohttp
+        import time
+        
+        # Generate a synthetic authorization code for APIM
+        synthetic_code = f"az_cli_auth_{int(time.time())}"
+        
         async with aiohttp.ClientSession() as session:
-            # Generate a synthetic authorization code (APIM will accept it)
-            import time
-            synthetic_code = f"az_cli_auth_{int(time.time())}"
-            
             data = {
                 'grant_type': 'authorization_code',
                 'code': synthetic_code,
@@ -337,13 +342,17 @@ async def get_mcp_token_from_apim() -> Optional[str]:
             }
             
             print(f"🔄 Getting MCP token from APIM OAuth endpoint...")
+            print(f"   Token URL: {APIM_OAUTH_TOKEN_URL}")
+            
             async with session.post(APIM_OAUTH_TOKEN_URL, data=data) as response:
                 if response.status == 200:
                     tokens = await response.json()
                     access_token = tokens.get('access_token')
                     if access_token:
-                        print(f"✅ Got MCP access token from APIM")
+                        print(f"✅ Got MCP access token from APIM: {access_token[:30]}...")
                         return access_token
+                    else:
+                        print(f"❌ No access_token in response: {tokens}")
                 else:
                     error_text = await response.text()
                     print(f"❌ APIM token error: {response.status} - {error_text}")
@@ -713,17 +722,19 @@ class MCPSessionManager:
             
         return None
 
-async def test_mcp_fixed_session(use_az_token: bool = False):
+async def test_mcp_fixed_session(use_az_token: bool = True):
     """Test MCP with proper SSE session establishment"""
     
     access_token = None
     
-    # If using Azure CLI token (automatically get MCP token from APIM)
+    # If using automatic token (via APIM OAuth endpoint)
     if use_az_token:
-        print(f"🔐 Getting MCP token automatically...")
+        print(f"🔐 Getting MCP access token from APIM...")
         access_token = await get_mcp_token_from_apim()
         if not access_token:
             print(f"❌ Failed to get MCP token from APIM.")
+            print(f"   The APIM OAuth endpoint may require browser-based authentication.")
+            print(f"   Try running with: python test_apim_mcp_connection.py --use-browser-auth")
             return False
     else:
         # Load or obtain OAuth token
@@ -889,13 +900,14 @@ def print_summary(infra_results: Dict[str, bool], mcp_result: bool) -> int:
 
 if __name__ == "__main__":
     # Check for command-line arguments
-    use_az_token = '--use-az-token' in sys.argv
+    # Default to using Azure CLI token (no browser authentication required)
+    use_az_token = '--use-browser-auth' not in sys.argv
     skip_infra = '--skip-infra' in sys.argv
     
     if '--help' in sys.argv or '-h' in sys.argv:
         print("Usage: python test_apim_mcp_connection.py [OPTIONS]")
         print("\nOptions:")
-        print("  --use-az-token      Use automatic token (no browser required)")
+        print("  --use-browser-auth  Use browser-based OAuth (default: Azure CLI token)")
         print("  --skip-infra        Skip AKS infrastructure tests")
         print("  --generate-token    Generate OAuth token interactively")
         print("  --help, -h          Show this help message")

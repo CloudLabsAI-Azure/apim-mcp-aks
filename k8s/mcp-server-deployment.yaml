@@ -45,6 +45,10 @@ spec:
           value: "${COSMOSDB_ENDPOINT}"
         - name: COSMOSDB_DATABASE_NAME
           value: "${COSMOSDB_DATABASE_NAME}"
+        - name: AZURE_SEARCH_ENDPOINT
+          value: "${AZURE_SEARCH_ENDPOINT}"
+        - name: AZURE_SEARCH_INDEX_NAME
+          value: "${AZURE_SEARCH_INDEX_NAME}"
         resources:
           requests:
             memory: "256Mi"

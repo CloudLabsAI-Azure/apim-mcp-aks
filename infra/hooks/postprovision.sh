@@ -21,6 +21,8 @@ FOUNDRY_MODEL=$(echo $FOUNDRY_MODEL_DEPLOYMENT_NAME | tr -d '"')
 EMBEDDING_MODEL=$(echo $EMBEDDING_MODEL_DEPLOYMENT_NAME | tr -d '"')
 COSMOS_ENDPOINT=$(echo $COSMOSDB_ENDPOINT | tr -d '"')
 COSMOS_DATABASE=$(echo $COSMOSDB_DATABASE_NAME | tr -d '"')
+SEARCH_ENDPOINT=$(echo $AZURE_SEARCH_ENDPOINT | tr -d '"')
+SEARCH_INDEX=$(echo $AZURE_SEARCH_INDEX_NAME | tr -d '"')
 
 echo "  AKS Cluster: $AKS_NAME"
 echo "  Resource Group: $RG_NAME"
@@ -31,6 +33,8 @@ echo "  Foundry Model: $FOUNDRY_MODEL"
 echo "  Embedding Model: $EMBEDDING_MODEL"
 echo "  CosmosDB Endpoint: $COSMOS_ENDPOINT"
 echo "  CosmosDB Database: $COSMOS_DATABASE"
+echo "  AI Search Endpoint: $SEARCH_ENDPOINT"
+echo "  AI Search Index: $SEARCH_INDEX"
 
 if [ -z "$AKS_NAME" ] || [ -z "$RG_NAME" ]; then
   echo "⚠️  Could not find AKS cluster name or resource group"
@@ -72,6 +76,8 @@ sed -e "s|\${CONTAINER_REGISTRY}|$CONTAINER_REG|g" \
     -e "s|\${EMBEDDING_MODEL_DEPLOYMENT_NAME}|$EMBEDDING_MODEL|g" \
     -e "s|\${COSMOSDB_ENDPOINT}|$COSMOS_ENDPOINT|g" \
     -e "s|\${COSMOSDB_DATABASE_NAME}|$COSMOS_DATABASE|g" \
+    -e "s|\${AZURE_SEARCH_ENDPOINT}|$SEARCH_ENDPOINT|g" \
+    -e "s|\${AZURE_SEARCH_INDEX_NAME}|$SEARCH_INDEX|g" \
     ./k8s/mcp-server-deployment.yaml > ./k8s/mcp-server-deployment-configured.yaml
 echo "  ✅ Configured mcp-server-deployment-configured.yaml"
 

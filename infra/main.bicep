@@ -45,6 +45,10 @@ param embeddingModelCapacity int = 10
 param cosmosDbAccountName string = ''
 param cosmosDatabaseName string = 'mcpdb'
 
+// Azure AI Search configuration
+param searchServiceName string = ''
+param searchIndexName string = 'task-instructions'
+
 // MCP Client APIM gateway specific variables
 
 var oauth_scopes = 'openid https://graph.microsoft.com/.default'
@@ -494,6 +498,61 @@ module cosmosRoleAssignmentMcp './app/cosmos-RoleAssignment.bicep' = {
   }
 }
 
+// =========================================
+// Azure AI Search for Long-Term Memory (Foundry IQ)
+// =========================================
+
+var searchResourceName = !empty(searchServiceName) ? searchServiceName : '${abbrs.searchSearchServices}${resourceToken}'
+
+// Azure AI Search Service with semantic search and private networking
+module searchService './core/search/search-service.bicep' = {
+  name: 'searchService'
+  scope: rg
+  params: {
+    name: searchResourceName
+    location: location
+    tags: tags
+    sku: 'basic'
+    replicaCount: 1
+    partitionCount: 1
+    semanticSearch: 'standard'
+    publicNetworkAccess: vnetEnabled ? 'Disabled' : 'Enabled'
+    disableLocalAuth: true
+    enablePrivateEndpoint: vnetEnabled
+    virtualNetworkName: vnetEnabled ? serviceVirtualNetworkName : ''
+    subnetName: vnetEnabled ? serviceVirtualNetworkPrivateEndpointSubnetName : ''
+  }
+  dependsOn: vnetEnabled ? [
+    serviceVirtualNetwork
+  ] : []
+}
+
+// RBAC: Search Index Data Contributor role for MCP server identity
+// This allows the MCP server to read/write data in search indexes
+var SearchIndexDataContributor = '8ebe5a00-799e-43f5-93ac-243d3dce84a7'
+module searchRoleAssignmentMcp './core/search/search-role-assignment.bicep' = {
+  name: 'searchRoleAssignmentMcp'
+  scope: rg
+  params: {
+    searchServiceName: searchService.outputs.name
+    roleDefinitionID: SearchIndexDataContributor
+    principalID: mcpUserAssignedIdentity.outputs.identityPrincipalId
+  }
+}
+
+// RBAC: Search Service Contributor role for MCP server identity
+// This allows the MCP server to manage indexes and knowledge bases
+var SearchServiceContributor = '7ca78c08-252a-4471-8644-bb5ff32d4ba0'
+module searchServiceRoleAssignmentMcp './core/search/search-role-assignment.bicep' = {
+  name: 'searchServiceRoleAssignmentMcp'
+  scope: rg
+  params: {
+    searchServiceName: searchService.outputs.name
+    roleDefinitionID: SearchServiceContributor
+    principalID: mcpUserAssignedIdentity.outputs.identityPrincipalId
+  }
+}
+
 // Monitor application with Azure Monitor
 module monitoring './core/monitor/monitoring.bicep' = {
   name: 'monitoring'
@@ -551,3 +610,8 @@ output EMBEDDING_MODEL_DEPLOYMENT_NAME string = embeddingModelDeploymentName
 output COSMOSDB_ENDPOINT string = cosmosAccount.outputs.endpoint
 output COSMOSDB_DATABASE_NAME string = cosmosDatabaseName
 output COSMOSDB_ACCOUNT_NAME string = cosmosAccount.outputs.name
+
+// Azure AI Search outputs
+output AZURE_SEARCH_ENDPOINT string = searchService.outputs.endpoint
+output AZURE_SEARCH_INDEX_NAME string = searchIndexName
+output AZURE_SEARCH_SERVICE_NAME string = searchService.outputs.name

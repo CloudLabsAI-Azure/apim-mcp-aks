@@ -45,6 +45,10 @@ spec:
           value: "https://cosmos-3aa6nbg5qypnk.documents.azure.com:443/"
         - name: COSMOSDB_DATABASE_NAME
           value: "mcpdb"
+        - name: AZURE_SEARCH_ENDPOINT
+          value: "https://srch-3aa6nbg5qypnk.search.windows.net"
+        - name: AZURE_SEARCH_INDEX_NAME
+          value: "task-instructions"
         resources:
           requests:
             memory: "256Mi"

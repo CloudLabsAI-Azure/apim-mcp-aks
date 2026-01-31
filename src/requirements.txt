@@ -10,6 +10,9 @@ pydantic>=2.9.0
 agent-framework-azure-ai==1.0.0b260107
 agent-framework-core==1.0.0b260107
 
+# Azure AI Search for long-term memory and Foundry IQ integration
+azure-search-documents>=11.5.0
+
 # Azure OpenAI SDK for Foundry model calls
 openai>=1.0.0
 

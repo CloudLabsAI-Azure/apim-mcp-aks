@@ -23,8 +23,8 @@ from .base import (
     MemoryType,
     CompositeMemory,
 )
-from .cosmos_memory import CosmosDBShortTermMemory
-from .aisearch_memory import AISearchLongTermMemory, FoundryIQMemory
+from .cosmos_memory import ShortTermMemory
+from .aisearch_memory import LongTermMemory, FoundryIQMemory
 
 __all__ = [
     # Base classes
@@ -34,8 +34,8 @@ __all__ = [
     "MemoryType",
     "CompositeMemory",
     # Short-term memory
-    "CosmosDBShortTermMemory",
-    # Long-term memory (stubs - to be implemented)
-    "AISearchLongTermMemory",
+    "ShortTermMemory",
+    # Long-term memory with Foundry IQ integration
+    "LongTermMemory",
     "FoundryIQMemory",
 ]

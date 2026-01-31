@@ -18,6 +18,8 @@ $foundryModelDeploymentName = $envValues.FOUNDRY_MODEL_DEPLOYMENT_NAME.Trim('"')
 $embeddingModelDeploymentName = $envValues.EMBEDDING_MODEL_DEPLOYMENT_NAME.Trim('"')
 $cosmosDbEndpoint = $envValues.COSMOSDB_ENDPOINT.Trim('"')
 $cosmosDbDatabaseName = $envValues.COSMOSDB_DATABASE_NAME.Trim('"')
+$azureSearchEndpoint = $envValues.AZURE_SEARCH_ENDPOINT.Trim('"')
+$azureSearchIndexName = $envValues.AZURE_SEARCH_INDEX_NAME.Trim('"')
 
 Write-Host "  AKS Cluster: $aksName" -ForegroundColor White
 Write-Host "  Resource Group: $rgName" -ForegroundColor White
@@ -28,6 +30,8 @@ Write-Host "  Foundry Model: $foundryModelDeploymentName" -ForegroundColor White
 Write-Host "  Embedding Model: $embeddingModelDeploymentName" -ForegroundColor White
 Write-Host "  CosmosDB Endpoint: $cosmosDbEndpoint" -ForegroundColor White
 Write-Host "  CosmosDB Database: $cosmosDbDatabaseName" -ForegroundColor White
+Write-Host "  AI Search Endpoint: $azureSearchEndpoint" -ForegroundColor White
+Write-Host "  AI Search Index: $azureSearchIndexName" -ForegroundColor White
 
 if (-not $aksName -or -not $rgName) {
   Write-Host "⚠️  Could not find AKS cluster name or resource group" -ForegroundColor Yellow
@@ -66,7 +70,9 @@ $configuredDeployment = $deploymentTemplate `
   -replace '\$\{FOUNDRY_MODEL_DEPLOYMENT_NAME\}', $foundryModelDeploymentName `
   -replace '\$\{EMBEDDING_MODEL_DEPLOYMENT_NAME\}', $embeddingModelDeploymentName `
   -replace '\$\{COSMOSDB_ENDPOINT\}', $cosmosDbEndpoint `
-  -replace '\$\{COSMOSDB_DATABASE_NAME\}', $cosmosDbDatabaseName
+  -replace '\$\{COSMOSDB_DATABASE_NAME\}', $cosmosDbDatabaseName `
+  -replace '\$\{AZURE_SEARCH_ENDPOINT\}', $azureSearchEndpoint `
+  -replace '\$\{AZURE_SEARCH_INDEX_NAME\}', $azureSearchIndexName
 $configuredDeployment | Out-File -FilePath "./k8s/mcp-server-deployment-configured.yaml" -Encoding utf8
 Write-Host "  ✅ Configured mcp-server-deployment-configured.yaml" -ForegroundColor Green
 

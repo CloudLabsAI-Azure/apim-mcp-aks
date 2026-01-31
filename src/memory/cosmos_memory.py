@@ -16,7 +16,7 @@ from .base import MemoryProvider, MemoryEntry, MemorySearchResult, MemoryType
 logger = logging.getLogger(__name__)
 
 
-class CosmosDBShortTermMemory(MemoryProvider):
+class ShortTermMemory(MemoryProvider):
     """
     Short-term memory provider backed by Azure CosmosDB.
     

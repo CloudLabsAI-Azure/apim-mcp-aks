@@ -27,7 +27,7 @@ from agent_framework import ai_function, AIFunction
 from agent_framework.azure import AzureAIAgentClient
 
 # Memory Provider imports
-from memory import CosmosDBShortTermMemory, MemoryEntry, MemoryType, CompositeMemory
+from memory import ShortTermMemory, MemoryEntry, MemoryType, CompositeMemory, LongTermMemory
 
 from dotenv import load_dotenv
 
@@ -85,12 +85,12 @@ else:
     logger.warning("COSMOSDB_ENDPOINT not configured - task storage will not work")
 
 # Initialize Memory Providers
-short_term_memory: Optional[CosmosDBShortTermMemory] = None
+short_term_memory: Optional[ShortTermMemory] = None
 composite_memory: Optional[CompositeMemory] = None
 
 if COSMOSDB_ENDPOINT:
     try:
-        short_term_memory = CosmosDBShortTermMemory(
+        short_term_memory = ShortTermMemory(
             endpoint=COSMOSDB_ENDPOINT,
             database_name=COSMOSDB_DATABASE_NAME,
             container_name="short_term_memory",
@@ -118,6 +118,13 @@ sessions: Dict[str, Dict[str, Any]] = {}
 FOUNDRY_PROJECT_ENDPOINT = os.getenv("FOUNDRY_PROJECT_ENDPOINT", "")
 FOUNDRY_MODEL_DEPLOYMENT_NAME = os.getenv("FOUNDRY_MODEL_DEPLOYMENT_NAME", "gpt-5.2-chat")
 EMBEDDING_MODEL_DEPLOYMENT_NAME = os.getenv("EMBEDDING_MODEL_DEPLOYMENT_NAME", "text-embedding-3-large")
+
+# Azure AI Search configuration for long-term memory
+AZURE_SEARCH_ENDPOINT = os.getenv("AZURE_SEARCH_ENDPOINT", "")
+AZURE_SEARCH_INDEX_NAME = os.getenv("AZURE_SEARCH_INDEX_NAME", "task-instructions")
+
+# AI Search Long-Term Memory will be initialized after helper functions are defined
+long_term_memory: Optional[LongTermMemory] = None
 
 
 # =========================================
@@ -344,6 +351,145 @@ Return ONLY valid JSON array, no markdown or explanation."""
         return [{"step": 1, "action": "Error", "description": str(e), "estimated_effort": "unknown"}]
 
 
+def generate_plan_with_instructions(
+    task: str,
+    similar_tasks: List[Dict[str, Any]],
+    task_instructions: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    """
+    Generate a plan of steps to accomplish the task using:
+    1. Similar past tasks from CosmosDB (short-term memory)
+    2. Task instructions from AI Search (long-term memory)
+    
+    Args:
+        task: The task description
+        similar_tasks: List of similar tasks from CosmosDB
+        task_instructions: List of task instructions from AI Search
+    
+    Returns:
+        List of planned steps
+    """
+    if not FOUNDRY_PROJECT_ENDPOINT:
+        return [{"step": 1, "action": "Manual planning required", "description": "Foundry not configured"}]
+    
+    try:
+        from openai import AzureOpenAI
+        
+        credential = DefaultAzureCredential()
+        token = credential.get_token("https://cognitiveservices.azure.com/.default")
+        
+        base_endpoint = FOUNDRY_PROJECT_ENDPOINT.split('/api/projects')[0] if '/api/projects' in FOUNDRY_PROJECT_ENDPOINT else FOUNDRY_PROJECT_ENDPOINT
+        
+        client = AzureOpenAI(
+            azure_endpoint=base_endpoint,
+            api_key=token.token,
+            api_version="2024-02-15-preview"
+        )
+        
+        # Build context from similar tasks (short-term memory)
+        context = ""
+        if similar_tasks:
+            context = "\n\n## Similar Past Tasks (Short-Term Memory):\n"
+            for st in similar_tasks[:3]:
+                context += f"- {st['task']} (intent: {st['intent']}, similarity: {st['similarity']:.2f})\n"
+        
+        # Build context from task instructions (long-term memory from AI Search)
+        if task_instructions:
+            context += "\n\n## Task Instructions (Long-Term Memory):\n"
+            for ti in task_instructions[:2]:
+                context += f"\n### {ti.get('title', 'Untitled')} (relevance: {ti.get('score', 0):.2f})\n"
+                context += f"Category: {ti.get('category', 'N/A')}\n"
+                context += f"Description: {ti.get('description', 'N/A')}\n"
+                
+                # Include reference steps if available
+                ref_steps = ti.get('steps', [])
+                if ref_steps:
+                    context += "Reference Steps:\n"
+                    for step in ref_steps[:5]:  # Limit to first 5 steps
+                        context += f"  {step.get('step', '?')}. {step.get('action', 'N/A')}: {step.get('description', 'N/A')[:100]}...\n"
+                
+                # Include content excerpt
+                content_excerpt = ti.get('content_excerpt', '')
+                if content_excerpt:
+                    context += f"\nKey Information:\n{content_excerpt[:500]}...\n"
+        
+        response = client.chat.completions.create(
+            model=FOUNDRY_MODEL_DEPLOYMENT_NAME,
+            messages=[
+                {
+                    "role": "system",
+                    "content": """You are an expert task planner with access to both short-term memory (similar past tasks) and long-term memory (detailed task instructions).
+
+Use the provided context to generate a highly specific, actionable plan tailored to the task.
+When task instructions are available, leverage the reference steps and key information to create a more detailed and accurate plan.
+
+Return a JSON array of steps, each with:
+- "step": step number (integer)
+- "action": brief action title
+- "description": detailed description of what to do
+- "estimated_effort": low/medium/high
+- "source": "original" if new, "adapted" if based on instructions
+
+Return ONLY valid JSON array, no markdown or explanation."""
+                },
+                {"role": "user", "content": f"Create a detailed plan for this task: {task}{context}"}
+            ]
+        )
+        
+        if response.choices and len(response.choices) > 0:
+            content = response.choices[0].message.content.strip()
+            try:
+                # Handle potential markdown code blocks
+                if content.startswith("```"):
+                    content = content.split("```")[1]
+                    if content.startswith("json"):
+                        content = content[4:]
+                return json.loads(content)
+            except json.JSONDecodeError:
+                return [{"step": 1, "action": "Execute task", "description": content, "estimated_effort": "medium", "source": "original"}]
+        
+        return [{"step": 1, "action": "Execute task", "description": task, "estimated_effort": "medium", "source": "original"}]
+    
+    except Exception as e:
+        logger.error(f"Error generating plan with instructions: {e}")
+        # Fallback to basic plan generation
+        return generate_plan(task, similar_tasks)
+
+
+# =========================================
+# Initialize AI Search Long-Term Memory
+# (After helper functions are defined)
+# =========================================
+
+def _initialize_long_term_memory():
+    """Initialize AI Search long-term memory with embedding function."""
+    global long_term_memory
+    
+    if AZURE_SEARCH_ENDPOINT:
+        try:
+            long_term_memory = LongTermMemory(
+                endpoint=AZURE_SEARCH_ENDPOINT,
+                index_name=AZURE_SEARCH_INDEX_NAME,
+                foundry_endpoint=FOUNDRY_PROJECT_ENDPOINT,
+            )
+            # Set embedding function for the long-term memory
+            if FOUNDRY_PROJECT_ENDPOINT:
+                long_term_memory.set_embedding_function(get_embedding)
+            
+            # Update composite memory with long-term if it exists
+            if composite_memory:
+                composite_memory._long_term = long_term_memory
+            
+            logger.info(f"AI Search Long-Term Memory initialized: {AZURE_SEARCH_INDEX_NAME}")
+        except Exception as e:
+            logger.error(f"Failed to initialize AI Search long-term memory: {e}")
+    else:
+        logger.warning("AZURE_SEARCH_ENDPOINT not configured - long-term memory will not work")
+
+# Initialize long-term memory now that helper functions are available
+_initialize_long_term_memory()
+
+
 # Define Agent Framework tools using @ai_function decorator
 @ai_function
 def hello_mcp_tool() -> str:
@@ -452,13 +598,14 @@ def ask_foundry_tool(question: str) -> str:
 def next_best_action_tool(task: str) -> str:
     """
     Analyze a task using semantic reasoning, generate embeddings, find similar past tasks,
+    retrieve relevant task instructions from long-term memory (AI Search),
     and create a plan of steps. Stores the task and plan in CosmosDB for future reference.
     
     Args:
         task: The task description in natural language (English sentence)
     
     Returns:
-        A JSON response containing task analysis, similar tasks, and planned steps
+        A JSON response containing task analysis, similar tasks, task instructions, and planned steps
     """
     if not FOUNDRY_PROJECT_ENDPOINT:
         return json.dumps({"error": "Foundry endpoint not configured"})
@@ -467,6 +614,8 @@ def next_best_action_tool(task: str) -> str:
         return json.dumps({"error": "CosmosDB not configured"})
     
     try:
+        import asyncio
+        
         task_id = str(uuid.uuid4())
         timestamp = datetime.utcnow().isoformat()
         
@@ -478,27 +627,49 @@ def next_best_action_tool(task: str) -> str:
         logger.info("Analyzing task intent...")
         intent = analyze_intent(task)
         
-        # Step 3: Find similar tasks using cosine similarity
-        logger.info("Searching for similar past tasks...")
+        # Step 3: Find similar tasks using cosine similarity (short-term memory from CosmosDB)
+        logger.info("Searching for similar past tasks in CosmosDB...")
         similar_tasks = find_similar_tasks(task_embedding, threshold=0.7, limit=5)
         
-        # Step 4: Generate plan based on task and similar past tasks
-        logger.info("Generating execution plan...")
-        plan_steps = generate_plan(task, similar_tasks)
+        # Step 4: Search for task instructions in AI Search long-term memory
+        task_instructions = []
+        if long_term_memory:
+            logger.info("Searching for task instructions in AI Search...")
+            try:
+                # Run async search in sync context
+                loop = asyncio.new_event_loop()
+                task_instructions = loop.run_until_complete(
+                    long_term_memory.search_task_instructions(
+                        task_description=task,
+                        limit=3,
+                        include_steps=True
+                    )
+                )
+                loop.close()
+                logger.info(f"Found {len(task_instructions)} relevant task instructions")
+            except Exception as e:
+                logger.warning(f"Failed to retrieve task instructions from AI Search: {e}")
+        else:
+            logger.info("AI Search long-term memory not configured - skipping task instructions lookup")
         
-        # Step 5: Store task in CosmosDB
+        # Step 5: Generate plan based on task, similar past tasks, AND task instructions
+        logger.info("Generating execution plan with task instructions context...")
+        plan_steps = generate_plan_with_instructions(task, similar_tasks, task_instructions)
+        
+        # Step 6: Store task in CosmosDB
         task_doc = {
             'id': task_id,
             'task': task,
             'intent': intent,
             'embedding': task_embedding,
             'created_at': timestamp,
-            'similar_task_count': len(similar_tasks)
+            'similar_task_count': len(similar_tasks),
+            'task_instructions_found': len(task_instructions)
         }
         cosmos_tasks_container.upsert_item(task_doc)
         logger.info(f"Task stored in CosmosDB with id: {task_id}")
         
-        # Step 6: Store plan in CosmosDB
+        # Step 7: Store plan in CosmosDB
         plan_doc = {
             'id': str(uuid.uuid4()),
             'taskId': task_id,
@@ -506,6 +677,7 @@ def next_best_action_tool(task: str) -> str:
             'intent': intent,
             'steps': plan_steps,
             'similar_tasks_referenced': [{'id': st['id'], 'similarity': st['similarity']} for st in similar_tasks],
+            'task_instructions_used': [ti.get('document_id', '') for ti in task_instructions],
             'created_at': timestamp,
             'status': 'planned'
         }
@@ -526,6 +698,19 @@ def next_best_action_tool(task: str) -> str:
                         'similarity_score': round(st['similarity'], 3)
                     }
                     for st in similar_tasks
+                ],
+                'task_instructions_found': len(task_instructions),
+                'task_instructions': [
+                    {
+                        'title': ti.get('title', ''),
+                        'category': ti.get('category', ''),
+                        'intent': ti.get('intent', ''),
+                        'description': ti.get('description', ''),
+                        'relevance_score': round(ti.get('score', 0), 3),
+                        'estimated_effort': ti.get('estimated_effort', ''),
+                        'reference_steps_count': len(ti.get('steps', []))
+                    }
+                    for ti in task_instructions
                 ]
             },
             'plan': {
@@ -535,7 +720,8 @@ def next_best_action_tool(task: str) -> str:
             'metadata': {
                 'created_at': timestamp,
                 'embedding_dimensions': len(task_embedding),
-                'stored_in_cosmos': True
+                'stored_in_cosmos': True,
+                'long_term_memory_used': len(task_instructions) > 0
             }
         }
         

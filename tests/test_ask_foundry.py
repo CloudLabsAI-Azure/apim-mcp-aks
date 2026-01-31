@@ -42,7 +42,7 @@ def load_config() -> Dict[str, Any]:
 class MCPClient:
     """MCP Client that maintains SSE session"""
     
-    def __init__(self, base_url: str, auth_token: str):
+    def __init__(self, base_url: str, auth_token: str = None):
         self.base_url = base_url.rstrip('/')
         self.auth_token = auth_token
         self.session = None
@@ -51,11 +51,12 @@ class MCPClient:
     
     async def __aenter__(self):
         cookie_jar = aiohttp.CookieJar()
+        headers = {}
+        if self.auth_token and not self.auth_token.startswith('direct-mode'):
+            headers['Authorization'] = f'Bearer {self.auth_token}'
         self.session = aiohttp.ClientSession(
             cookie_jar=cookie_jar,
-            headers={
-                'Authorization': f'Bearer {self.auth_token}',
-            }
+            headers=headers
         )
         return self
     
@@ -184,24 +185,37 @@ async def test_ask_foundry():
     print("🧪 Testing ask_foundry MCP Tool")
     print("=" * 60)
     
+    # Check for --direct mode
+    use_direct = '--direct' in sys.argv
+    
     # Load config
     config = load_config()
-    apim_config = config.get('apim', {})
-    base_url = apim_config.get('base_url', '')
-    token_url = apim_config.get('oauth_token_url', '')
     
-    if not base_url:
-        print("❌ No APIM base URL configured")
-        return False
-    
-    print(f"🔗 APIM Base URL: {base_url}")
-    
-    # Get token first
-    async with aiohttp.ClientSession() as session:
-        token = await get_mcp_token(session, token_url)
-        if not token:
-            print("❌ Failed to get access token")
+    if use_direct:
+        # Use direct connection via port-forward
+        direct_config = config.get('direct', {})
+        base_url = direct_config.get('base_url', 'http://localhost:8000/runtime/webhooks/mcp')
+        token = 'direct-mode-no-token-needed'
+        print(f"\n🔗 Direct Mode URL: {base_url}")
+        print("   (Using port-forward, no auth required)")
+    else:
+        # Use APIM
+        apim_config = config.get('apim', {})
+        base_url = apim_config.get('base_url', '')
+        token_url = apim_config.get('oauth_token_url', '')
+        
+        if not base_url:
+            print("❌ No APIM base URL configured")
             return False
+        
+        print(f"\n🔗 APIM Base URL: {base_url}")
+        
+        # Get token first
+        async with aiohttp.ClientSession() as session:
+            token = await get_mcp_token(session, token_url)
+            if not token:
+                print("❌ Failed to get access token")
+                return False
     
     # Use MCP Client for the rest
     async with MCPClient(base_url, token) as client:

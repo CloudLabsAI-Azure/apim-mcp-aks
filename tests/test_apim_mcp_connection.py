@@ -9,9 +9,10 @@ This script tests the complete stack:
 4. MCP tool discovery and execution
 
 Usage:
-    python test_apim_mcp_connection.py [--use-browser-auth] [--skip-infra] [--generate-token]
+    python test_apim_mcp_connection.py [--direct] [--use-browser-auth] [--skip-infra] [--generate-token]
 
 Options:
+    --direct            Use direct connection via port-forward (no APIM auth required)
     --use-browser-auth  Use browser-based OAuth (default: Azure CLI token)
     --skip-infra        Skip AKS infrastructure tests
     --generate-token    Generate OAuth token interactively
@@ -547,7 +548,7 @@ class TokenManager:
         return None
 
 class MCPSessionManager:
-    def __init__(self, base_url: str, auth_token: str):
+    def __init__(self, base_url: str, auth_token: str = None):
         self.base_url = base_url.rstrip('/')
         self.auth_token = auth_token
         self.session = None
@@ -558,11 +559,13 @@ class MCPSessionManager:
     async def __aenter__(self):
         # Use cookie jar to maintain session state
         cookie_jar = aiohttp.CookieJar()
+        headers = {}
+        # Only add auth header if we have a valid token (not direct mode)
+        if self.auth_token and not self.auth_token.startswith('direct-mode'):
+            headers['Authorization'] = f'Bearer {self.auth_token}'
         self.session = aiohttp.ClientSession(
             cookie_jar=cookie_jar,
-            headers={
-                'Authorization': f'Bearer {self.auth_token}',
-            }
+            headers=headers
         )
         return self
         
@@ -724,19 +727,34 @@ class MCPSessionManager:
         return None
 
 @pytest.mark.asyncio
-async def test_mcp_fixed_session(use_az_token: bool = True):
+async def test_mcp_fixed_session(use_az_token: bool = True, use_direct: bool = False):
     """Test MCP with proper SSE session establishment"""
     
     access_token = None
+    base_url = APIM_BASE_URL
     
+    # If using direct mode (port-forward, no auth)
+    if use_direct:
+        # Load direct config
+        if CONFIG_FILE.exists():
+            with open(CONFIG_FILE, 'r') as f:
+                data = json.load(f)
+                direct_config = data.get('direct', {})
+                base_url = direct_config.get('base_url', 'http://localhost:8000/runtime/webhooks/mcp')
+        else:
+            base_url = 'http://localhost:8000/runtime/webhooks/mcp'
+        access_token = 'direct-mode-no-token-needed'
+        print(f"🔗 Direct Mode URL: {base_url}")
+        print(f"   (Using port-forward, no auth required)")
     # If using automatic token (via APIM OAuth endpoint)
-    if use_az_token:
+    elif use_az_token:
         print(f"🔐 Getting MCP access token from APIM...")
         access_token = await get_mcp_token_from_apim()
         if not access_token:
             print(f"❌ Failed to get MCP token from APIM.")
             print(f"   The APIM OAuth endpoint may require browser-based authentication.")
             print(f"   Try running with: python test_apim_mcp_connection.py --use-browser-auth")
+            print(f"   Or use direct mode: python test_apim_mcp_connection.py --direct")
             return False
     else:
         # Load or obtain OAuth token
@@ -766,10 +784,11 @@ async def test_mcp_fixed_session(use_az_token: bool = True):
             return False
     
     print(f"🚀 Starting Fixed MCP Session Test")
-    print(f"🔗 Base URL: {APIM_BASE_URL}")
-    print(f"🎫 Access Token: {access_token[:20]}...")
+    print(f"🔗 Base URL: {base_url}")
+    if not use_direct:
+        print(f"🎫 Access Token: {access_token[:20]}...")
     
-    async with MCPSessionManager(APIM_BASE_URL, access_token) as mcp:
+    async with MCPSessionManager(base_url, access_token) as mcp:
         # Step 1: Establish SSE session first and keep it alive
         print("\n" + "="*50)
         print("📡 STEP 1: Establishing Persistent SSE Session")
@@ -903,12 +922,14 @@ def print_summary(infra_results: Dict[str, bool], mcp_result: bool) -> int:
 if __name__ == "__main__":
     # Check for command-line arguments
     # Default to using Azure CLI token (no browser authentication required)
+    use_direct = '--direct' in sys.argv
     use_az_token = '--use-browser-auth' not in sys.argv
     skip_infra = '--skip-infra' in sys.argv
     
     if '--help' in sys.argv or '-h' in sys.argv:
         print("Usage: python test_apim_mcp_connection.py [OPTIONS]")
         print("\nOptions:")
+        print("  --direct            Use direct connection via port-forward (no APIM auth)")
         print("  --use-browser-auth  Use browser-based OAuth (default: Azure CLI token)")
         print("  --skip-infra        Skip AKS infrastructure tests")
         print("  --generate-token    Generate OAuth token interactively")
@@ -962,7 +983,7 @@ if __name__ == "__main__":
         print("🌐 MCP Protocol Tests")
         print("=" * 60)
         
-        mcp_result = asyncio.run(test_mcp_fixed_session(use_az_token=use_az_token))
+        mcp_result = asyncio.run(test_mcp_fixed_session(use_az_token=use_az_token, use_direct=use_direct))
         
     except KeyboardInterrupt:
         print("\n\n⚠️  Tests interrupted by user")

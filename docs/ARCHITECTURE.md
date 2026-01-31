@@ -212,12 +212,12 @@ graph TB
         CompositeMemory[CompositeMemory<br/>Unified Memory Interface]
         
         subgraph "Short-Term Memory"
-            CosmosMemory[CosmosDBShortTermMemory<br/>Session-based storage]
+            CosmosMemory[ShortTermMemory<br/>Session-based storage]
             STMFeatures[Features:<br/>• TTL support<br/>• Partition by session_id<br/>• Vector similarity search]
         end
         
         subgraph "Long-Term Memory"
-            AISearchMemory[AISearchLongTermMemory<br/>Persistent storage]
+            AISearchMemory[LongTermMemory<br/>Persistent storage]
             FoundryIQ[FoundryIQMemory<br/>Knowledge graph]
             LTMFeatures[Features:<br/>• Cross-session retrieval<br/>• Hybrid search<br/>• Entity extraction]
         end

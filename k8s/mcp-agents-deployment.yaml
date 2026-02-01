@@ -1,0 +1,197 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mcp-agents
+  labels:
+    azure.workload.identity/use: "true"
+---
+# =========================================
+# ServiceAccount for Entra Agent Identity (Primary - AI Agent Workloads)
+# =========================================
+# This service account uses the Entra Agent Identity for AI agent operations.
+# Provides better governance, audit trails, and purpose-built identity for AI agents.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mcp-agent-sa
+  namespace: mcp-agents
+  annotations:
+    # Entra Agent Identity App ID (client ID)
+    azure.workload.identity/client-id: "${AGENT_IDENTITY_APP_ID}"
+    azure.workload.identity/tenant-id: "${AZURE_TENANT_ID}"
+  labels:
+    azure.workload.identity/use: "true"
+    app: mcp-agents
+    identity-type: entra-agent-identity
+---
+# =========================================
+# Legacy ServiceAccount (Retained for Deployment Scripts)
+# =========================================
+# This service account uses the User Assigned Managed Identity (id-mcp-*).
+# Retained for deployment scripts that create Agent Identity Blueprints.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mcp-agents-sa
+  namespace: mcp-agents
+  annotations:
+    # User Assigned Managed Identity Client ID (id-mcp-*)
+    azure.workload.identity/client-id: "${MCP_SERVER_IDENTITY_CLIENT_ID}"
+  labels:
+    azure.workload.identity/use: "true"
+    app: mcp-agents
+    identity-type: managed-identity-legacy
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-agents
+  namespace: mcp-agents
+  labels:
+    app: mcp-agents
+    agent: next-best-action
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mcp-agents
+  template:
+    metadata:
+      labels:
+        app: mcp-agents
+        azure.workload.identity/use: "true"
+        agent: next-best-action
+      annotations:
+        # Entra Agent Identity metadata
+        entra.agent-id/enabled: "true"
+        entra.agent-id/blueprint-app-id: "${AGENT_IDENTITY_BLUEPRINT_APP_ID}"
+    spec:
+      # Use mcp-agents-sa which has working federated credentials
+      serviceAccountName: mcp-agents-sa
+      containers:
+      - name: mcp-agents
+        image: ${CONTAINER_REGISTRY}/mcp-agents:${IMAGE_TAG}
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        env:
+        # =========================================
+        # Entra Agent Identity Configuration
+        # =========================================
+        - name: AGENT_IDENTITY_ENABLED
+          value: "true"
+        - name: AZURE_CLIENT_ID
+          value: "${AGENT_IDENTITY_APP_ID}"
+        - name: AGENT_IDENTITY_BLUEPRINT_APP_ID
+          value: "${AGENT_IDENTITY_BLUEPRINT_APP_ID}"
+        - name: AGENT_IDENTITY_DISPLAY_NAME
+          value: "${AGENT_IDENTITY_DISPLAY_NAME}"
+        # Legacy identity reference (for deployment scripts only)
+        - name: MCP_SERVER_IDENTITY_CLIENT_ID
+          value: "${MCP_SERVER_IDENTITY_CLIENT_ID}"
+        # =========================================
+        # Azure Storage Configuration
+        # =========================================
+        - name: AZURE_STORAGE_ACCOUNT_URL
+          value: "${AZURE_STORAGE_ACCOUNT_URL}"
+        # =========================================
+        # Azure AI Foundry Configuration
+        # =========================================
+        - name: FOUNDRY_PROJECT_ENDPOINT
+          value: "${FOUNDRY_PROJECT_ENDPOINT}"
+        - name: AZURE_AI_PROJECT_ENDPOINT
+          value: "${FOUNDRY_PROJECT_ENDPOINT}"
+        - name: FOUNDRY_MODEL_DEPLOYMENT_NAME
+          value: "${FOUNDRY_MODEL_DEPLOYMENT_NAME}"
+        - name: AZURE_AI_MODEL_DEPLOYMENT_NAME
+          value: "${FOUNDRY_MODEL_DEPLOYMENT_NAME}"
+        - name: EMBEDDING_MODEL_DEPLOYMENT_NAME
+          value: "${EMBEDDING_MODEL_DEPLOYMENT_NAME}"
+        # =========================================
+        # CosmosDB Configuration
+        # =========================================
+        - name: COSMOSDB_ENDPOINT
+          value: "${COSMOSDB_ENDPOINT}"
+        - name: COSMOSDB_DATABASE_NAME
+          value: "${COSMOSDB_DATABASE_NAME}"
+        # =========================================
+        # Azure AI Search Configuration (Foundry IQ)
+        # =========================================
+        - name: AZURE_SEARCH_ENDPOINT
+          value: "${AZURE_SEARCH_ENDPOINT}"
+        - name: AZURE_SEARCH_INDEX_NAME
+          value: "${AZURE_SEARCH_INDEX_NAME}"
+        # =========================================
+        # Microsoft Fabric IQ Configuration
+        # =========================================
+        - name: FABRIC_ENABLED
+          value: "${FABRIC_ENABLED}"
+        - name: FABRIC_ENDPOINT
+          value: "${FABRIC_ENDPOINT}"
+        - name: FABRIC_WORKSPACE_ID
+          value: "${FABRIC_WORKSPACE_ID}"
+        - name: FABRIC_ONTOLOGY_NAME
+          value: "${FABRIC_ONTOLOGY_NAME}"
+        - name: FABRIC_ONELAKE_DFS_ENDPOINT
+          value: "${FABRIC_ONELAKE_DFS_ENDPOINT}"
+        - name: FABRIC_ONELAKE_BLOB_ENDPOINT
+          value: "${FABRIC_ONELAKE_BLOB_ENDPOINT}"
+        - name: FABRIC_LAKEHOUSE_NAME
+          value: "${FABRIC_LAKEHOUSE_NAME}"
+        - name: FABRIC_ONTOLOGY_PATH
+          value: "${FABRIC_ONTOLOGY_PATH}"
+        # =========================================
+        # Ontology Storage (Azure Blob - Fabric fallback)
+        # =========================================
+        - name: ONTOLOGY_CONTAINER_NAME
+          value: "${ONTOLOGY_CONTAINER_NAME}"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-agents
+  namespace: mcp-agents
+  labels:
+    app: mcp-agents
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: mcp-agents

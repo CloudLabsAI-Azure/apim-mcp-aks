@@ -10,7 +10,7 @@ if [ -z "$CONTAINER_REGISTRY" ]; then
 fi
 
 # Set defaults
-IMAGE_NAME="${IMAGE_NAME:-mcp-server}"
+IMAGE_NAME="${IMAGE_NAME:-mcp-agents}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 FULL_IMAGE_NAME="${CONTAINER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
 

@@ -5,7 +5,7 @@ metadata:
   template: apim-mcp-aks@1.0.0
   
 services:
-  mcp-server:
+  mcp-agents:
     project: ./src/
     language: python
     host: aks

@@ -124,7 +124,7 @@ def test_mcp_namespace_exists() -> bool:
     """Test if MCP server namespace exists"""
     print("\n🔍 Testing MCP server namespace...")
     
-    result = run_command("kubectl get namespace mcp-server -o json")
+    result = run_command("kubectl get namespace mcp-agents -o json")
     if not result:
         print("❌ MCP server namespace not found")
         return False
@@ -137,7 +137,7 @@ def test_mcp_server_deployed() -> bool:
     """Test if MCP server deployment exists and is running"""
     print("\n🔍 Testing MCP server deployment...")
     
-    result = run_command("kubectl get deployment mcp-server -n mcp-server -o json")
+    result = run_command("kubectl get deployment mcp-agents -n mcp-agents -o json")
     if not result:
         print("❌ MCP server deployment not found")
         return False
@@ -163,7 +163,7 @@ def test_mcp_server_pods() -> bool:
     """Test if MCP server pods are running"""
     print("\n🔍 Testing MCP server pods...")
     
-    result = run_command("kubectl get pods -n mcp-server -o json")
+    result = run_command("kubectl get pods -n mcp-agents -o json")
     if not result:
         print("❌ Could not get MCP server pods")
         return False
@@ -204,7 +204,7 @@ def test_mcp_service_exists() -> bool:
     """Test if MCP server service exists"""
     print("\n🔍 Testing MCP server service...")
     
-    result = run_command("kubectl get service mcp-server -n mcp-server -o json")
+    result = run_command("kubectl get service mcp-agents -n mcp-agents -o json")
     if not result:
         print("❌ MCP server service not found")
         return False
@@ -225,7 +225,7 @@ def test_workload_identity() -> bool:
     """Test if workload identity is configured"""
     print("\n🔍 Testing workload identity configuration...")
     
-    result = run_command("kubectl get serviceaccount mcp-server-sa -n mcp-server -o json")
+    result = run_command("kubectl get serviceaccount mcp-agents-sa -n mcp-agents -o json")
     if not result:
         print("⚠️  MCP server service account not found")
         return False

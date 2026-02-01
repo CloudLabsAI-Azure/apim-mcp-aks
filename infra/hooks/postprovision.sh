@@ -78,14 +78,14 @@ sed -e "s|\${CONTAINER_REGISTRY}|$CONTAINER_REG|g" \
     -e "s|\${COSMOSDB_DATABASE_NAME}|$COSMOS_DATABASE|g" \
     -e "s|\${AZURE_SEARCH_ENDPOINT}|$SEARCH_ENDPOINT|g" \
     -e "s|\${AZURE_SEARCH_INDEX_NAME}|$SEARCH_INDEX|g" \
-    ./k8s/mcp-server-deployment.yaml > ./k8s/mcp-server-deployment-configured.yaml
-echo "  ✅ Configured mcp-server-deployment-configured.yaml"
+    ./k8s/mcp-agents-deployment.yaml > ./k8s/mcp-agents-deployment-configured.yaml
+echo "  ✅ Configured mcp-agents-deployment-configured.yaml"
 
 # Read and configure loadbalancer template
 sed -e "s|\${AZURE_RESOURCE_GROUP_NAME}|$RG_NAME|g" \
     -e "s|\${MCP_PUBLIC_IP_ADDRESS}|$MCP_PUBLIC_IP|g" \
-    ./k8s/mcp-server-loadbalancer.yaml > ./k8s/mcp-server-loadbalancer-configured.yaml
-echo "  ✅ Configured mcp-server-loadbalancer-configured.yaml"
+    ./k8s/mcp-agents-loadbalancer.yaml > ./k8s/mcp-agents-loadbalancer-configured.yaml
+echo "  ✅ Configured mcp-agents-loadbalancer-configured.yaml"
 
 # Create federated identity for workload identity
 echo ""
@@ -94,13 +94,13 @@ OIDC_ISSUER=$(az aks show --resource-group "$RG_NAME" --name "$AKS_NAME" --query
 IDENTITY_NAME="id-mcp-${AKS_NAME#aks-}"
 
 # Check if federated credential already exists
-if ! az identity federated-credential show --name mcp-server-federated --identity-name "$IDENTITY_NAME" --resource-group "$RG_NAME" 2>/dev/null; then
+if ! az identity federated-credential show --name mcp-agents-federated --identity-name "$IDENTITY_NAME" --resource-group "$RG_NAME" 2>/dev/null; then
   az identity federated-credential create \
-    --name mcp-server-federated \
+    --name mcp-agents-federated \
     --identity-name "$IDENTITY_NAME" \
     --resource-group "$RG_NAME" \
     --issuer "$OIDC_ISSUER" \
-    --subject "system:serviceaccount:mcp-server:mcp-server-sa" \
+    --subject "system:serviceaccount:mcp-agents:mcp-agents-sa" \
     --audience "api://AzureADTokenExchange"
   echo "✅ Federated identity credential created"
 else
@@ -116,13 +116,13 @@ export CONTAINER_REGISTRY="$CONTAINER_REG"
 # Deploy to Kubernetes
 echo ""
 echo "🚀 Deploying to Kubernetes..."
-kubectl apply -f ./k8s/mcp-server-deployment-configured.yaml
-kubectl apply -f ./k8s/mcp-server-loadbalancer-configured.yaml
+kubectl apply -f ./k8s/mcp-agents-deployment-configured.yaml
+kubectl apply -f ./k8s/mcp-agents-loadbalancer-configured.yaml
 
 # Wait for deployment to be ready
 echo ""
 echo "⏳ Waiting for deployment to be ready..."
-kubectl rollout status deployment/mcp-server -n mcp-server --timeout=300s
+kubectl rollout status deployment/mcp-agents -n mcp-agents --timeout=300s
 
 # Wait for LoadBalancer to get external IP
 echo ""
@@ -131,7 +131,7 @@ MAX_RETRIES=30
 RETRY=0
 LB_READY=false
 while [ $RETRY -lt $MAX_RETRIES ] && [ "$LB_READY" = "false" ]; do
-  LB_STATUS=$(kubectl get svc mcp-server-loadbalancer -n mcp-server -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+  LB_STATUS=$(kubectl get svc mcp-agents-loadbalancer -n mcp-agents -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
   if [ "$LB_STATUS" = "$MCP_PUBLIC_IP" ]; then
     LB_READY=true
     echo "✅ LoadBalancer ready with IP: $LB_STATUS"

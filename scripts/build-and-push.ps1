@@ -10,7 +10,7 @@ if (-not $env:CONTAINER_REGISTRY) {
 }
 
 # Set defaults
-$IMAGE_NAME = if ($env:IMAGE_NAME) { $env:IMAGE_NAME } else { "mcp-server" }
+$IMAGE_NAME = if ($env:IMAGE_NAME) { $env:IMAGE_NAME } else { "mcp-agents" }
 $IMAGE_TAG = if ($env:IMAGE_TAG) { $env:IMAGE_TAG } else { "latest" }
 $FULL_IMAGE_NAME = "$($env:CONTAINER_REGISTRY)/$($IMAGE_NAME):$($IMAGE_TAG)"
 

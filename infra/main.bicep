@@ -59,6 +59,21 @@ param fabricSkuName string = 'F2'
 param fabricAdminEmail string = ''
 param fabricEnabled bool = false  // Set to true to enable Fabric capacity deployment
 
+// =========================================
+// Entra Agent Identity Configuration
+// =========================================
+@description('Enable Entra Agent Identity for the Next Best Action agent (preview feature)')
+param agentIdentityEnabled bool = true
+
+@description('Display name for the Agent Identity Blueprint')
+param agentBlueprintDisplayName string = ''
+
+@description('Display name for the Next Best Action Agent Identity')
+param agentIdentityDisplayName string = ''
+
+@description('Principal ID of sponsor user for agent identity (admin user)')
+param agentSponsorPrincipalId string = ''
+
 // MCP Client APIM gateway specific variables
 
 var oauth_scopes = 'openid https://graph.microsoft.com/.default'
@@ -120,7 +135,6 @@ module mcpApiModule './app/apim-mcp/mcp-api.bicep' = {
   dependsOn: [
     aksCluster
     oauthAPIModule
-    mcpPublicIp
   ]
 }
 
@@ -144,6 +158,46 @@ module mcpUserAssignedIdentity './core/identity/userAssignedIdentity.bicep' = {
     location: location
     tags: tags
     identityName: '${abbrs.managedIdentityUserAssignedIdentities}mcp-${resourceToken}'
+  }
+}
+
+// =========================================
+// Entra Agent Identity for Next Best Action Agent
+// =========================================
+
+// Agent Identity Blueprint names
+var agentBlueprintName = !empty(agentBlueprintDisplayName) ? agentBlueprintDisplayName : 'NextBestAction-Blueprint-${resourceToken}'
+var agentName = !empty(agentIdentityDisplayName) ? agentIdentityDisplayName : 'NextBestAction-Agent-${resourceToken}'
+
+// Agent Identity Blueprint - the template for creating agent identities
+// This uses the MCP managed identity to authenticate and create the blueprint via Microsoft Graph API
+module agentIdentityBlueprint './core/identity/agentIdentityBlueprint.bicep' = if (agentIdentityEnabled) {
+  name: 'agentIdentityBlueprint'
+  scope: rg
+  params: {
+    location: location
+    tags: tags
+    blueprintDisplayName: agentBlueprintName
+    blueprintUniqueName: 'nba-blueprint-${resourceToken}'
+    federatedIdentityClientId: mcpUserAssignedIdentity.outputs.identityName
+    federatedIdentityPrincipalId: mcpUserAssignedIdentity.outputs.identityPrincipalId
+    sponsorPrincipalIds: !empty(agentSponsorPrincipalId) ? [agentSponsorPrincipalId] : []
+    ownerPrincipalIds: !empty(agentSponsorPrincipalId) ? [agentSponsorPrincipalId] : []
+    agentScopeValue: 'next_best_action'
+  }
+}
+
+// Agent Identity - the actual identity used by the Next Best Action agent
+module nextBestActionAgentIdentity './core/identity/agentIdentity.bicep' = if (agentIdentityEnabled) {
+  name: 'nextBestActionAgentIdentity'
+  scope: rg
+  params: {
+    location: location
+    tags: tags
+    agentDisplayName: agentName
+    blueprintAppId: agentIdentityBlueprint!.outputs.blueprintAppId
+    managedIdentityResourceId: mcpUserAssignedIdentity.outputs.identityId
+    sponsorPrincipalIds: !empty(agentSponsorPrincipalId) ? [agentSponsorPrincipalId] : []
   }
 }
 
@@ -216,6 +270,27 @@ module acrPullRoleAssignment 'core/acr/acr-role-assignment.bicep' = {
   dependsOn: [
     aksCluster
   ]
+}
+
+// =========================================
+// AKS Workload Identity Federation for Agent Identity
+// =========================================
+
+// Configure federated credential for the Agent Identity Blueprint to allow AKS pods to authenticate
+module agentFederatedCredential './core/identity/aksFederatedCredential.bicep' = if (agentIdentityEnabled) {
+  name: 'agentFederatedCredential'
+  scope: rg
+  params: {
+    location: location
+    tags: tags
+    aksClusterName: aksCluster.outputs.aksClusterName
+    serviceAccountNamespace: 'mcp-agents'
+    serviceAccountName: 'mcp-agent-sa'
+    identityClientId: nextBestActionAgentIdentity!.outputs.agentIdentityAppId
+    identityPrincipalId: nextBestActionAgentIdentity!.outputs.agentIdentityPrincipalId
+    federatedCredentialName: 'aks-mcp-agent-fed'
+    configurationIdentityResourceId: mcpUserAssignedIdentity.outputs.identityId
+  }
 }
 
 // Backing storage for Azure functions api
@@ -626,6 +701,35 @@ module appInsightsRoleAssignmentMcp './core/monitor/appinsights-access.bicep' = 
   }
 }
 
+// =========================================
+// Next Best Action Agent Identity Role Assignments
+// =========================================
+// Comprehensive role assignments for the Entra Agent Identity
+// Grants access to: CosmosDB, AI Search (Foundry IQ), Storage, OpenAI (GPT-5.2-chat), Foundry Project
+
+module agentRoleAssignments './app/agent-RoleAssignments.bicep' = if (agentIdentityEnabled) {
+  name: 'agentRoleAssignments'
+  scope: rg
+  params: {
+    agentPrincipalId: nextBestActionAgentIdentity!.outputs.agentIdentityPrincipalId
+    cosmosAccountName: cosmosAccount.outputs.name
+    searchServiceName: searchService.outputs.name
+    storageAccountName: storage.outputs.name
+    foundryAccountName: foundry.outputs.foundryAccountName
+  }
+}
+
+// Allow access from Agent Identity to application insights (monitoring)
+module appInsightsRoleAssignmentAgent './core/monitor/appinsights-access.bicep' = if (agentIdentityEnabled) {
+  name: 'appInsightsRoleAssignmentAgent'
+  scope: rg
+  params: {
+    appInsightsName: monitoring.outputs.applicationInsightsName
+    roleDefinitionID: monitoringRoleDefinitionId
+    principalID: nextBestActionAgentIdentity!.outputs.agentIdentityPrincipalId
+  }
+}
+
 
 
 // App outputs
@@ -673,3 +777,13 @@ output FABRIC_ENABLED bool = fabricEnabled
 // OneLake endpoints (workspace-specific endpoints are constructed dynamically)
 output FABRIC_ONELAKE_DFS_ENDPOINT string = fabricEnabled ? 'https://onelake.dfs.fabric.microsoft.com' : ''
 output FABRIC_ONELAKE_BLOB_ENDPOINT string = fabricEnabled ? 'https://onelake.blob.fabric.microsoft.com' : ''
+
+// =========================================
+// Entra Agent Identity outputs
+// =========================================
+output AGENT_IDENTITY_ENABLED bool = agentIdentityEnabled
+output AGENT_IDENTITY_BLUEPRINT_APP_ID string = agentIdentityEnabled ? agentIdentityBlueprint!.outputs.blueprintAppId : ''
+output AGENT_IDENTITY_APP_ID string = agentIdentityEnabled ? nextBestActionAgentIdentity!.outputs.agentIdentityAppId : ''
+output AGENT_IDENTITY_PRINCIPAL_ID string = agentIdentityEnabled ? nextBestActionAgentIdentity!.outputs.agentIdentityPrincipalId : ''
+output AGENT_IDENTITY_DISPLAY_NAME string = agentIdentityEnabled ? nextBestActionAgentIdentity!.outputs.agentDisplayName : ''
+

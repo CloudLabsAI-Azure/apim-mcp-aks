@@ -361,7 +361,9 @@ async def test_next_best_action():
             print("\n⏳ Processing task (this may take 30-60 seconds)...")
             print("   • Generating embeddings with text-embedding-3-large")
             print("   • Analyzing intent with GPT")
-            print("   • Searching for similar tasks")
+            print("   • Searching short-term memory (CosmosDB)")
+            print("   • Retrieving long-term memory (FoundryIQ)")
+            print("   • Querying facts memory (Fabric IQ ontologies)")
             print("   • Generating action plan")
             print("   • Storing in CosmosDB")
             
@@ -472,7 +474,7 @@ async def test_next_best_action():
             print("  2. Verify COSMOSDB_ENDPOINT is set in Kubernetes deployment")
             print("  3. Verify EMBEDDING_MODEL_DEPLOYMENT_NAME is set (default: text-embedding-3-large)")
             print("  4. Check the MCP server logs:")
-            print("     kubectl logs -n mcp-server -l app=mcp-server --tail=100")
+            print("     kubectl logs -n mcp-agents -l app=mcp-agents --tail=100")
             print("  5. Verify the models are deployed in Azure AI Foundry")
         
         return all_passed
@@ -495,3 +497,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

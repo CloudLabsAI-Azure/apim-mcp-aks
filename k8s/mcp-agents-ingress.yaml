@@ -1,8 +1,8 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: mcp-server-ingress
-  namespace: mcp-server
+  name: mcp-agents-ingress
+  namespace: mcp-agents
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
@@ -14,18 +14,18 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: ${MCP_SERVER_HOST}
+  - host: ${MCP_AGENTS_HOST}
     http:
       paths:
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: mcp-server
+            name: mcp-agents
             port:
               number: 80
   # Uncomment for TLS
   # tls:
   # - hosts:
-  #   - ${MCP_SERVER_HOST}
-  #   secretName: mcp-server-tls
+  #   - ${MCP_AGENTS_HOST}
+  #   secretName: mcp-agents-tls

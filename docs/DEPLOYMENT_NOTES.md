@@ -8,6 +8,60 @@
 
 ---
 
+## Automated Deployment
+
+### Two-Phase Deployment Process
+
+The deployment uses a two-phase approach to handle Entra Agent Identity requirements:
+
+**Phase 1: Core Infrastructure** (Agent Identity disabled)
+```powershell
+# Login to Azure
+azd auth login
+
+# Disable Agent Identity for initial deployment
+azd env set AZURE_AGENT_IDENTITY_ENABLED false
+
+# Deploy core infrastructure
+azd up
+```
+
+**Phase 2: Enable Agent Identity** (after core infrastructure is ready)
+```powershell
+# Enable Agent Identity
+azd env set AZURE_AGENT_IDENTITY_ENABLED true
+
+# Re-provision to create Agent Identity
+azd provision
+```
+
+### Complete Automated Script
+
+```powershell
+# Full automated deployment script
+azd auth login
+
+# Phase 1: Core Infrastructure
+azd env set AZURE_AGENT_IDENTITY_ENABLED false
+azd up --no-prompt
+
+# Wait for deployment to stabilize
+Start-Sleep -Seconds 30
+
+# Phase 2: Enable Agent Identity  
+azd env set AZURE_AGENT_IDENTITY_ENABLED true
+azd provision --no-prompt
+
+# Verify deployment
+kubectl get pods -n mcp-agents
+kubectl get svc -n mcp-agents
+
+# Run tests
+python tests/test_apim_mcp_connection.py --use-az-token
+```
+
+---
+
 ## Deployed Resources
 
 ### Core Infrastructure
@@ -21,7 +75,7 @@
 | Virtual Network | `vnet-<unique-id>` | ✅ VNet integration enabled |
 | Log Analytics | `log-<unique-id>` | ✅ Centralized logging |
 | Application Insights | Integrated | ✅ Application monitoring |
-| Managed Identities | AKS, MCP workload, Entra App | ✅ Configured |
+| Managed Identities | AKS, MCP workload, Agent Identity | ✅ Configured |
 
 ### AI Services
 | Resource | Endpoint | Status |
@@ -33,7 +87,7 @@
 ### MCP Server
 | Component | Status | Details |
 |-----------|--------|---------|
-| Docker Image | ✅ Pushed | `<registry>.azurecr.io/mcp-server:latest` |
+| Docker Image | ✅ Pushed | `<registry>.azurecr.io/mcp-agents:latest` |
 | K8s Deployment | ✅ Running | 2 replicas healthy |
 | LoadBalancer IP | ✅ Assigned | `<public-ip>` |
 | Health Endpoint | ✅ Accessible | `http://<public-ip>/health` |
@@ -60,9 +114,9 @@ AZURE_CLIENT_ID: <managed-identity-client-id>
 # Azure AI Agent SDK
 FOUNDRY_PROJECT_ENDPOINT: https://<ai-services>.services.ai.azure.com/api/projects/<project>
 AZURE_AI_PROJECT_ENDPOINT: https://<ai-services>.services.ai.azure.com/api/projects/<project>
-FOUNDRY_MODEL_DEPLOYMENT_NAME: <model-deployment-name>
-AZURE_AI_MODEL_DEPLOYMENT_NAME: <model-deployment-name>
-EMBEDDING_MODEL_DEPLOYMENT_NAME: text-embedding-3-large
+FOUNDRY_MODEL_DEPLOYMENT_NAME: <chat-model-deployment>
+AZURE_AI_MODEL_DEPLOYMENT_NAME: <chat-model-deployment>
+EMBEDDING_MODEL_DEPLOYMENT_NAME: <embedding-model-deployment>
 
 # Data Services
 COSMOSDB_ENDPOINT: https://<cosmos>.documents.azure.com:443/
@@ -106,22 +160,22 @@ az aks get-credentials --resource-group <resource-group> --name <aks-cluster-nam
 
 ### Check Deployment Status
 ```powershell
-kubectl get pods -n mcp-server
-kubectl get svc -n mcp-server
-kubectl logs -n mcp-server deployment/mcp-server --tail=50
+kubectl get pods -n mcp-agents
+kubectl get svc -n mcp-agents
+kubectl logs -n mcp-agents deployment/mcp-agents --tail=50
 ```
 
 ### Test Health Endpoint
 ```powershell
-$LB_IP = kubectl get svc -n mcp-server mcp-server-loadbalancer -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+$LB_IP = kubectl get svc -n mcp-agents mcp-agents-loadbalancer -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
 Invoke-RestMethod -Uri "http://$LB_IP/health" -Method GET
 ```
 
 ### Redeploy MCP Server
 ```powershell
-kubectl apply -f k8s/mcp-server-deployment-configured.yaml
-kubectl rollout restart deployment/mcp-server -n mcp-server
-kubectl rollout status deployment/mcp-server -n mcp-server
+kubectl apply -f k8s/mcp-agents-deployment-configured.yaml
+kubectl rollout restart deployment/mcp-agents -n mcp-agents
+kubectl rollout status deployment/mcp-agents -n mcp-agents
 ```
 
 ### Upload Ontologies to Storage
@@ -154,7 +208,7 @@ azd provision
 ```
 
 ### 2. Update Kubernetes Deployment
-Update the `FABRIC_ENABLED` environment variable in `k8s/mcp-server-deployment-configured.yaml`:
+Update the `FABRIC_ENABLED` environment variable in `k8s/mcp-agents-deployment-configured.yaml`:
 ```yaml
 - name: FABRIC_ENABLED
   value: "true"
@@ -166,8 +220,8 @@ Update the `FABRIC_ENABLED` environment variable in `k8s/mcp-server-deployment-c
 
 ### 3. Redeploy
 ```powershell
-kubectl apply -f k8s/mcp-server-deployment-configured.yaml
-kubectl rollout restart deployment/mcp-server -n mcp-server
+kubectl apply -f k8s/mcp-agents-deployment-configured.yaml
+kubectl rollout restart deployment/mcp-agents -n mcp-agents
 ```
 
 The FactsMemory provider will automatically switch from Azure Blob Storage to Fabric IQ OneLake.
@@ -192,6 +246,20 @@ The FactsMemory provider will automatically switch from Azure Blob Storage to Fa
 
 ## Troubleshooting
 
+### DeploymentActive Error
+If you see "DeploymentActive" error during `azd provision`, wait and retry:
+```powershell
+Start-Sleep -Seconds 60
+azd provision --no-prompt
+```
+
+### Storage Key Authentication Error
+This occurs when Agent Identity is enabled before storage account is ready:
+```
+Key based authentication is not permitted on this storage account
+```
+**Solution:** Use the two-phase deployment process (disable Agent Identity first, then enable after core infrastructure deploys).
+
 ### If azd up shows storage account error
 Transient error that doesn't affect deployed resources. Proceed with next steps.
 
@@ -208,8 +276,8 @@ az apim deletedservice purge --service-name <your-apim-name> --location eastus2
 
 ### If pods are in CrashLoopBackOff
 ```powershell
-kubectl logs -n mcp-server deployment/mcp-server --previous
-kubectl describe pod -n mcp-server <pod-name>
+kubectl logs -n mcp-agents deployment/mcp-agents --previous
+kubectl describe pod -n mcp-agents <pod-name>
 ```
 
 ### If storage access is denied from pods
@@ -269,3 +337,4 @@ Verify the managed identity has `Storage Blob Data Contributor` role on the stor
 ---
 
 **Summary:** Infrastructure is **successfully deployed** and MCP server is running! 🎉
+

@@ -132,7 +132,7 @@ graph TB
     end
 
     subgraph "Azure Container Registry"
-        MCPImage[MCP Server Image<br/>mcp-server:latest]
+        MCPImage[MCP Server Image<br/>mcp-agents:latest]
     end
 
     subgraph "Azure Storage"
@@ -832,7 +832,7 @@ flowchart TD
     GetCreds --> BuildImage[Run:<br/>./scripts/build-and-push.sh]
     BuildImage --> ImagePush[Push to ACR]
     
-    ImagePush --> DeployMCP[kubectl apply:<br/>mcp-server-deployment.yaml]
+    ImagePush --> DeployMCP[kubectl apply:<br/>mcp-agents-deployment.yaml]
     DeployMCP --> MCPCheck{MCP Server<br/>Pods Ready?}
     
     MCPCheck -->|No| WaitMCP[Wait for pods<br/>Check logs]
@@ -983,3 +983,4 @@ These Mermaid diagrams can be rendered in:
 - [Deployment Guide](./README.md)
 - [Azure Kubernetes Service](https://learn.microsoft.com/azure/aks/)
 - [Model Context Protocol](https://modelcontextprotocol.io/)
+

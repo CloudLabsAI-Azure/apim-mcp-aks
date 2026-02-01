@@ -31,11 +31,19 @@ param enableAzureRbac bool = true
 @description('Enable monitoring')
 param enableMonitoring bool = true
 
+@description('AKS SKU tier - Free or Standard')
+@allowed(['Free', 'Standard'])
+param skuTier string = 'Standard'
+
 // AKS Cluster with system node pool
 resource aksCluster 'Microsoft.ContainerService/managedClusters@2024-02-01' = {
   name: aksClusterName
   location: location
   tags: tags
+  sku: {
+    name: 'Base'
+    tier: skuTier
+  }
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {

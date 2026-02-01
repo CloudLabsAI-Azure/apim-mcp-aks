@@ -13,7 +13,7 @@
 |------|--------|---------|
 | AKS Cluster Connection | ✅ PASSED | Successfully connected to cluster |
 | AKS Nodes Running | ✅ PASSED | 2/2 nodes ready |
-| MCP Namespace | ✅ PASSED | mcp-server namespace exists |
+| MCP Namespace | ✅ PASSED | mcp-agents namespace exists |
 | MCP Server Deployment | ✅ PASSED | 2/2 replicas available and ready |
 | MCP Server Pods | ✅ PASSED | 2 pods running |
 | MCP Service | ✅ PASSED | ClusterIP configured |
@@ -48,7 +48,7 @@ Client
   ↓
 Azure Load Balancer (<LoadBalancer-IP>:80)
   ↓
-AKS Service (mcp-server.mcp-server.svc.cluster.local)
+AKS Service (mcp-agents.mcp-agents.svc.cluster.local)
   ↓ Workload Identity
 MCP Server Pods (2 replicas)
   ↓
@@ -107,7 +107,7 @@ Azure AI Foundry (model deployment)
 | Property | Value |
 |----------|-------|
 | **Name** | `<registry-name>`.azurecr.io |
-| **Image** | mcp-server:latest |
+| **Image** | mcp-agents:latest |
 | **Status** | ✅ Deployed |
 
 ---
@@ -127,13 +127,13 @@ python tests/test_ask_foundry.py --direct
 ### Test Health Endpoint
 ```powershell
 # Get LoadBalancer IP first
-$LB_IP = kubectl get svc -n mcp-server mcp-server-loadbalancer -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+$LB_IP = kubectl get svc -n mcp-agents mcp-agents-loadbalancer -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
 Invoke-RestMethod -Uri "http://$LB_IP/health" -Method GET
 ```
 
 ### Check Pod Logs
 ```powershell
-kubectl logs -n mcp-server deployment/mcp-server --tail=50
+kubectl logs -n mcp-agents deployment/mcp-agents --tail=50
 ```
 
 ---
@@ -143,7 +143,7 @@ kubectl logs -n mcp-server deployment/mcp-server --tail=50
 ### 1. LoadBalancer External Access
 **Status:** Intermittent external connectivity  
 **Impact:** May need to use kubectl port-forward for testing  
-**Workaround:** Use `kubectl port-forward -n mcp-server svc/mcp-server 8000:80`
+**Workaround:** Use `kubectl port-forward -n mcp-agents svc/mcp-agents 8000:80`
 
 ### 2. Agent Chat SDK Compatibility
 **Status:** `/agent/chat` endpoint has SDK interface issue  
@@ -211,19 +211,19 @@ kubectl logs -n mcp-server deployment/mcp-server --tail=50
 ### Test MCP Server Directly
 ```powershell
 # Get LoadBalancer IP
-$LB_IP = kubectl get svc -n mcp-server mcp-server-loadbalancer -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+$LB_IP = kubectl get svc -n mcp-agents mcp-agents-loadbalancer -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
 Invoke-RestMethod -Uri "http://$LB_IP/health" -Method GET
 Invoke-WebRequest -Uri "http://$LB_IP/runtime/webhooks/mcp/sse" -TimeoutSec 3
 ```
 
 ### Check Pod Logs
 ```powershell
-kubectl logs -n mcp-server deployment/mcp-server --tail=50
+kubectl logs -n mcp-agents deployment/mcp-agents --tail=50
 ```
 
 ### Check LoadBalancer Status
 ```powershell
-kubectl get svc -n mcp-server mcp-server-loadbalancer
+kubectl get svc -n mcp-agents mcp-agents-loadbalancer
 ```
 
 ### Run Full Test Suite
@@ -260,3 +260,4 @@ python tests/test_next_best_action.py --direct
 - [x] All protocol tests passing
 
 **Overall Status:** ✅ **ALL TESTS PASSED**
+

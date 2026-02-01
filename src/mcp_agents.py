@@ -2839,7 +2839,7 @@ async def mcp_message_endpoint(request: Request):
                         "tools": {}
                     },
                     "serverInfo": {
-                        "name": "mcp-server",
+                        "name": "mcp-agents",
                         "version": "1.0.0"
                     }
                 },
@@ -3071,3 +3071,4 @@ async def agent_chat_stream(request: Request):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+

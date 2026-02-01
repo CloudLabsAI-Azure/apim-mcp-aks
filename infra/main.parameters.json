@@ -31,6 +31,9 @@
     },
     "fabricAdminEmail": {
       "value": "${FABRIC_ADMIN_EMAIL}"
+    },
+    "agentIdentityEnabled": {
+      "value": "${AGENT_IDENTITY_ENABLED=false}"
     }
   }
 }

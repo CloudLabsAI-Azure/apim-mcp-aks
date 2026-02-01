@@ -285,7 +285,7 @@ async def test_ask_foundry():
                 if 'Foundry endpoint not configured' in error_text:
                     print("\n⚠️  FOUNDRY_PROJECT_ENDPOINT is not configured on the server")
                     print("   Set this environment variable in the Kubernetes deployment:")
-                    print("   kubectl set env deployment/mcp-server -n mcp-server FOUNDRY_PROJECT_ENDPOINT=<your-endpoint>")
+                    print("   kubectl set env deployment/mcp-agents -n mcp-agents FOUNDRY_PROJECT_ENDPOINT=<your-endpoint>")
                 all_passed = False
             else:
                 if content:
@@ -310,7 +310,7 @@ async def test_ask_foundry():
             print("❌ Some tests FAILED")
             print("\nTroubleshooting:")
             print("  1. Verify FOUNDRY_PROJECT_ENDPOINT is set in Kubernetes deployment")
-            print("  2. Check the MCP server logs: kubectl logs -n mcp-server -l app=mcp-server")
+            print("  2. Check the MCP server logs: kubectl logs -n mcp-agents -l app=mcp-agents")
             print("  3. Ensure the Foundry model deployment exists and is accessible")
         
         return all_passed
@@ -333,3 +333,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

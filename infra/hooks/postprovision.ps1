@@ -68,12 +68,18 @@ Write-Host "✅ ACR attached" -ForegroundColor Green
 Write-Host "`n📄 Configuring Kubernetes manifests..." -ForegroundColor Cyan
 
 # Read and configure deployment template
-$deploymentTemplate = Get-Content -Path "./k8s/mcp-server-deployment.yaml" -Raw
+$deploymentTemplate = Get-Content -Path "./k8s/mcp-agents-deployment.yaml" -Raw
+$tenantId = $envValues.AZURE_TENANT_ID.Trim('"')
 $configuredDeployment = $deploymentTemplate `
   -replace '\$\{CONTAINER_REGISTRY\}', $containerRegistry `
   -replace '\$\{IMAGE_TAG\}', 'latest' `
   -replace '\$\{AZURE_STORAGE_ACCOUNT_URL\}', $storageUrl `
   -replace '\$\{AZURE_CLIENT_ID\}', $mcpIdentityClientId `
+  -replace '\$\{AZURE_TENANT_ID\}', $tenantId `
+  -replace '\$\{MCP_SERVER_IDENTITY_CLIENT_ID\}', $mcpIdentityClientId `
+  -replace '\$\{AGENT_IDENTITY_APP_ID\}', $mcpIdentityClientId `
+  -replace '\$\{AGENT_IDENTITY_BLUEPRINT_APP_ID\}', '' `
+  -replace '\$\{AGENT_IDENTITY_DISPLAY_NAME\}', 'MCP Agent' `
   -replace '\$\{FOUNDRY_PROJECT_ENDPOINT\}', $foundryProjectEndpoint `
   -replace '\$\{FOUNDRY_MODEL_DEPLOYMENT_NAME\}', $foundryModelDeploymentName `
   -replace '\$\{EMBEDDING_MODEL_DEPLOYMENT_NAME\}', $embeddingModelDeploymentName `
@@ -81,23 +87,25 @@ $configuredDeployment = $deploymentTemplate `
   -replace '\$\{COSMOSDB_DATABASE_NAME\}', $cosmosDbDatabaseName `
   -replace '\$\{AZURE_SEARCH_ENDPOINT\}', $azureSearchEndpoint `
   -replace '\$\{AZURE_SEARCH_INDEX_NAME\}', $azureSearchIndexName `
+  -replace '\$\{FABRIC_ENABLED\}', $fabricEnabled `
   -replace '\$\{FABRIC_ENDPOINT\}', $fabricOneLakeDfsEndpoint `
   -replace '\$\{FABRIC_WORKSPACE_ID\}', '' `
   -replace '\$\{FABRIC_ONTOLOGY_NAME\}', 'agent-ontology' `
   -replace '\$\{FABRIC_ONELAKE_DFS_ENDPOINT\}', $fabricOneLakeDfsEndpoint `
   -replace '\$\{FABRIC_ONELAKE_BLOB_ENDPOINT\}', $fabricOneLakeBlobEndpoint `
   -replace '\$\{FABRIC_LAKEHOUSE_NAME\}', 'mcpontologies' `
-  -replace '\$\{FABRIC_ONTOLOGY_PATH\}', 'Files/ontology'
-$configuredDeployment | Out-File -FilePath "./k8s/mcp-server-deployment-configured.yaml" -Encoding utf8
-Write-Host "  ✅ Configured mcp-server-deployment-configured.yaml" -ForegroundColor Green
+  -replace '\$\{FABRIC_ONTOLOGY_PATH\}', 'Files/ontology' `
+  -replace '\$\{ONTOLOGY_CONTAINER_NAME\}', 'ontologies'
+$configuredDeployment | Out-File -FilePath "./k8s/mcp-agents-deployment-configured.yaml" -Encoding utf8
+Write-Host "  ✅ Configured mcp-agents-deployment-configured.yaml" -ForegroundColor Green
 
 # Read and configure loadbalancer template
-$lbTemplate = Get-Content -Path "./k8s/mcp-server-loadbalancer.yaml" -Raw
+$lbTemplate = Get-Content -Path "./k8s/mcp-agents-loadbalancer.yaml" -Raw
 $configuredLb = $lbTemplate `
   -replace '\$\{AZURE_RESOURCE_GROUP_NAME\}', $rgName `
   -replace '\$\{MCP_PUBLIC_IP_ADDRESS\}', $mcpPublicIpAddress
-$configuredLb | Out-File -FilePath "./k8s/mcp-server-loadbalancer-configured.yaml" -Encoding utf8
-Write-Host "  ✅ Configured mcp-server-loadbalancer-configured.yaml" -ForegroundColor Green
+$configuredLb | Out-File -FilePath "./k8s/mcp-agents-loadbalancer-configured.yaml" -Encoding utf8
+Write-Host "  ✅ Configured mcp-agents-loadbalancer-configured.yaml" -ForegroundColor Green
 
 # Create federated identity for workload identity
 Write-Host "`n🔐 Configuring workload identity..." -ForegroundColor Cyan
@@ -105,14 +113,14 @@ $oidcIssuer = az aks show --resource-group $rgName --name $aksName --query "oidc
 $identityName = "id-mcp-" + ($aksName -replace '^aks-', '')
 
 # Check if federated credential already exists
-$existingCred = az identity federated-credential show --name mcp-server-federated --identity-name $identityName --resource-group $rgName 2>$null
+$existingCred = az identity federated-credential show --name mcp-agents-federated --identity-name $identityName --resource-group $rgName 2>$null
 if (-not $existingCred) {
   az identity federated-credential create `
-    --name mcp-server-federated `
+    --name mcp-agents-federated `
     --identity-name $identityName `
     --resource-group $rgName `
     --issuer $oidcIssuer `
-    --subject "system:serviceaccount:mcp-server:mcp-server-sa" `
+    --subject "system:serviceaccount:mcp-agents:mcp-agents-sa" `
     --audience "api://AzureADTokenExchange"
   Write-Host "✅ Federated identity credential created" -ForegroundColor Green
 } else {
@@ -126,12 +134,12 @@ $env:CONTAINER_REGISTRY = $containerRegistry
 
 # Deploy to Kubernetes
 Write-Host "`n🚀 Deploying to Kubernetes..." -ForegroundColor Cyan
-kubectl apply -f ./k8s/mcp-server-deployment-configured.yaml
-kubectl apply -f ./k8s/mcp-server-loadbalancer-configured.yaml
+kubectl apply -f ./k8s/mcp-agents-deployment-configured.yaml
+kubectl apply -f ./k8s/mcp-agents-loadbalancer-configured.yaml
 
 # Wait for deployment to be ready
 Write-Host "`n⏳ Waiting for deployment to be ready..." -ForegroundColor Cyan
-kubectl rollout status deployment/mcp-server -n mcp-server --timeout=300s
+kubectl rollout status deployment/mcp-agents -n mcp-agents --timeout=300s
 
 # Wait for LoadBalancer to get external IP
 Write-Host "`n⏳ Waiting for LoadBalancer IP assignment..." -ForegroundColor Cyan
@@ -139,7 +147,7 @@ $maxRetries = 30
 $retry = 0
 $lbReady = $false
 while ($retry -lt $maxRetries -and -not $lbReady) {
-  $lbStatus = kubectl get svc mcp-server-loadbalancer -n mcp-server -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>$null
+  $lbStatus = kubectl get svc mcp-agents-loadbalancer -n mcp-agents -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>$null
   if ($lbStatus -eq $mcpPublicIpAddress) {
     $lbReady = $true
     Write-Host "✅ LoadBalancer ready with IP: $lbStatus" -ForegroundColor Green

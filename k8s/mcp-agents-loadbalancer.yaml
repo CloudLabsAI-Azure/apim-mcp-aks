@@ -1,8 +1,8 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: mcp-server-loadbalancer
-  namespace: mcp-server
+  name: mcp-agents-loadbalancer
+  namespace: mcp-agents
   annotations:
     service.beta.kubernetes.io/azure-load-balancer-internal: "false"  # Public load balancer
     # The resource group where the public IP resides (set by post-provision script)
@@ -12,7 +12,7 @@ spec:
   # Static IP allocated by Bicep (set by post-provision script)
   loadBalancerIP: "${MCP_PUBLIC_IP_ADDRESS}"
   selector:
-    app: mcp-server
+    app: mcp-agents
   ports:
     - name: http
       protocol: TCP

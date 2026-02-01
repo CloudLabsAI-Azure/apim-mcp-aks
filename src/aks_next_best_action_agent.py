@@ -1,6 +1,6 @@
 """
 AKS Next Best Action Agent
-FastAPI MCP ServerS
+FastAPI MCP Server
 Implements Model Context Protocol (MCP) with SSE support
 Enhanced with Microsoft Agent Framework for AI agent capabilities
 Integrated with CosmosDB for task and plan storage with semantic reasoning
@@ -55,6 +55,18 @@ try:
 except ImportError:
     LIGHTNING_AVAILABLE = False
 
+# Azure AI Evaluation SDK imports (for agent evaluators)
+try:
+    from azure.ai.evaluation import (
+        IntentResolutionEvaluator,
+        ToolCallAccuracyEvaluator,
+        TaskAdherenceEvaluator,
+    )
+    EVALUATION_AVAILABLE = True
+except ImportError:
+    EVALUATION_AVAILABLE = False
+    # Logger not yet defined, will log later in startup
+
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -63,6 +75,10 @@ load_dotenv(override=True)
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Log evaluation availability (after logger is defined)
+if not EVALUATION_AVAILABLE:
+    logger.warning("azure-ai-evaluation not available - evaluation tools will be disabled")
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -3115,6 +3131,160 @@ TOOLS = [
             "required": []
         }
     ),
+    # =========================================
+    # Agent Evaluation Tools (Azure AI Eval SDK)
+    # =========================================
+    MCPTool(
+        name="evaluate_intent_resolution",
+        description="Evaluate how well an agent resolved the user's intent using the Azure AI Evaluation SDK IntentResolutionEvaluator. Returns a score from 1-5.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The user query or conversation history"
+                },
+                "response": {
+                    "type": "string",
+                    "description": "The agent's response to evaluate"
+                }
+            },
+            "required": ["query", "response"]
+        }
+    ),
+    MCPTool(
+        name="evaluate_tool_call_accuracy",
+        description="Evaluate the accuracy of tool calls made by an agent using the Azure AI Evaluation SDK ToolCallAccuracyEvaluator. Returns a score from 1-5.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The user query"
+                },
+                "tool_calls": {
+                    "type": "array",
+                    "description": "Array of tool calls made by the agent",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "type": {"type": "string"},
+                            "tool_call_id": {"type": "string"},
+                            "name": {"type": "string"},
+                            "arguments": {"type": "object"}
+                        }
+                    }
+                },
+                "tool_definitions": {
+                    "type": "array",
+                    "description": "Array of available tool definitions (optional, uses defaults if not provided)"
+                }
+            },
+            "required": ["query", "tool_calls"]
+        }
+    ),
+    MCPTool(
+        name="evaluate_task_adherence",
+        description="Evaluate how well an agent's response adheres to the assigned task using the Azure AI Evaluation SDK TaskAdherenceEvaluator. Returns flagged (true/false) and reasoning.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The user query (task)"
+                },
+                "response": {
+                    "type": "string",
+                    "description": "The agent's response"
+                },
+                "tool_calls": {
+                    "type": "array",
+                    "description": "Optional array of tool calls made (for context)"
+                },
+                "system_message": {
+                    "type": "string",
+                    "description": "Optional system message defining the agent's role"
+                }
+            },
+            "required": ["query", "response"]
+        }
+    ),
+    MCPTool(
+        name="run_agent_evaluation",
+        description="Run a comprehensive evaluation on agent response data using all three agent evaluators (IntentResolution, ToolCallAccuracy, TaskAdherence). Returns scores and pass/fail status.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The user query"
+                },
+                "response": {
+                    "type": "string",
+                    "description": "The agent's response"
+                },
+                "tool_calls": {
+                    "type": "array",
+                    "description": "Array of tool calls made by the agent"
+                },
+                "tool_definitions": {
+                    "type": "array",
+                    "description": "Available tool definitions (optional)"
+                },
+                "system_message": {
+                    "type": "string",
+                    "description": "Optional system message"
+                },
+                "thresholds": {
+                    "type": "object",
+                    "description": "Optional score thresholds (default: 3 for each)",
+                    "properties": {
+                        "intent_resolution": {"type": "integer"},
+                        "tool_call_accuracy": {"type": "integer"},
+                        "task_adherence": {"type": "integer"}
+                    }
+                }
+            },
+            "required": ["query", "response"]
+        }
+    ),
+    MCPTool(
+        name="run_batch_evaluation",
+        description="Run evaluation on multiple query/response pairs. Returns aggregated metrics including average scores and pass rates.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "evaluation_data": {
+                    "type": "array",
+                    "description": "Array of evaluation items, each containing query, response, and optional tool_calls",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string"},
+                            "response": {"type": "string"},
+                            "tool_calls": {"type": "array"},
+                            "system_message": {"type": "string"}
+                        },
+                        "required": ["query", "response"]
+                    }
+                },
+                "thresholds": {
+                    "type": "object",
+                    "description": "Optional score thresholds"
+                }
+            },
+            "required": ["evaluation_data"]
+        }
+    ),
+    MCPTool(
+        name="get_evaluation_status",
+        description="Check if agent evaluation tools are available and properly configured.",
+        inputSchema={
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+    ),
 ]
 
 
@@ -4692,6 +4862,516 @@ async def _execute_tool_impl(tool_name: str, arguments: Dict[str, Any]) -> MCPTo
                 logger.error(f"Error getting Lightning stats: {e}")
                 return MCPToolResult(
                     content=[{"type": "text", "text": f"Error getting Lightning stats: {str(e)}"}],
+                    isError=True
+                )
+        
+        # =========================================
+        # Agent Evaluation Tool Handlers
+        # =========================================
+        elif tool_name == "get_evaluation_status":
+            return MCPToolResult(
+                content=[{
+                    "type": "text",
+                    "text": json.dumps({
+                        "evaluation_available": EVALUATION_AVAILABLE,
+                        "foundry_configured": bool(FOUNDRY_PROJECT_ENDPOINT),
+                        "model_deployment": FOUNDRY_MODEL_DEPLOYMENT_NAME,
+                        "evaluators": ["IntentResolutionEvaluator", "ToolCallAccuracyEvaluator", "TaskAdherenceEvaluator"] if EVALUATION_AVAILABLE else [],
+                        "message": "Evaluation tools ready" if EVALUATION_AVAILABLE and FOUNDRY_PROJECT_ENDPOINT else "Evaluation tools not available - check azure-ai-evaluation package and FOUNDRY_PROJECT_ENDPOINT"
+                    }, indent=2)
+                }]
+            )
+        
+        elif tool_name == "evaluate_intent_resolution":
+            if not EVALUATION_AVAILABLE:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "Azure AI Evaluation SDK not available. Install with: pip install azure-ai-evaluation"}],
+                    isError=True
+                )
+            
+            if not FOUNDRY_PROJECT_ENDPOINT:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "FOUNDRY_PROJECT_ENDPOINT not configured"}],
+                    isError=True
+                )
+            
+            query = arguments.get("query")
+            response = arguments.get("response")
+            
+            if not query or not response:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "Both 'query' and 'response' are required"}],
+                    isError=True
+                )
+            
+            try:
+                # Build model config using managed identity
+                # Extract base endpoint (remove /api/projects/... path if present)
+                base_endpoint = FOUNDRY_PROJECT_ENDPOINT.split('/api/projects')[0] if '/api/projects' in FOUNDRY_PROJECT_ENDPOINT else FOUNDRY_PROJECT_ENDPOINT
+                model_config = {
+                    "azure_endpoint": base_endpoint.rstrip('/'),
+                    "azure_deployment": FOUNDRY_MODEL_DEPLOYMENT_NAME,
+                    "api_version": "2024-10-21",
+                }
+                
+                # Initialize evaluator with managed identity credential
+                credential = DefaultAzureCredential()
+                # Use is_reasoning_model=True for gpt-5.x models that require max_completion_tokens
+                evaluator = IntentResolutionEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
+                
+                # Run evaluation
+                result = evaluator(query=query, response=response)
+                
+                return MCPToolResult(
+                    content=[{
+                        "type": "text",
+                        "text": json.dumps({
+                            "evaluator": "IntentResolutionEvaluator",
+                            "query": query[:100] + "..." if len(query) > 100 else query,
+                            "score": result.get("intent_resolution", 0),
+                            "explanation": result.get("intent_resolution_reason", ""),
+                            "threshold_recommendation": 3,
+                            "passed": result.get("intent_resolution", 0) >= 3
+                        }, indent=2)
+                    }]
+                )
+            except Exception as e:
+                logger.error(f"Error in evaluate_intent_resolution: {e}")
+                return MCPToolResult(
+                    content=[{"type": "text", "text": f"Evaluation error: {str(e)}"}],
+                    isError=True
+                )
+        
+        elif tool_name == "evaluate_tool_call_accuracy":
+            if not EVALUATION_AVAILABLE:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "Azure AI Evaluation SDK not available"}],
+                    isError=True
+                )
+            
+            if not FOUNDRY_PROJECT_ENDPOINT:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "FOUNDRY_PROJECT_ENDPOINT not configured"}],
+                    isError=True
+                )
+            
+            query = arguments.get("query")
+            tool_calls = arguments.get("tool_calls", [])
+            tool_definitions = arguments.get("tool_definitions")
+            
+            if not query:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "'query' is required"}],
+                    isError=True
+                )
+            
+            # Use default NBA tool definitions if not provided
+            if not tool_definitions:
+                tool_definitions = [
+                    {"name": "get_account_profile", "description": "Retrieves account profile and details.", "parameters": {"type": "object", "properties": {"account_id": {"type": "string"}}, "required": ["account_id"]}},
+                    {"name": "get_recent_activities", "description": "Gets recent activities for an account.", "parameters": {"type": "object", "properties": {"account_id": {"type": "string"}, "limit": {"type": "integer"}}, "required": ["account_id"]}},
+                    {"name": "recommend_next_actions", "description": "Generates recommended next actions.", "parameters": {"type": "object", "properties": {"account_context": {"type": "object"}}, "required": ["account_context"]}},
+                    {"name": "create_followup_task", "description": "Creates a follow-up task.", "parameters": {"type": "object", "properties": {"action": {"type": "string"}, "priority": {"type": "string"}, "due_date": {"type": "string"}}, "required": ["action"]}},
+                    {"name": "next_best_action", "description": "Analyzes a task and generates an action plan.", "parameters": {"type": "object", "properties": {"task": {"type": "string"}}, "required": ["task"]}}
+                ]
+            
+            try:
+                # Extract base endpoint (remove /api/projects/... path if present)
+                base_endpoint = FOUNDRY_PROJECT_ENDPOINT.split('/api/projects')[0] if '/api/projects' in FOUNDRY_PROJECT_ENDPOINT else FOUNDRY_PROJECT_ENDPOINT
+                model_config = {
+                    "azure_endpoint": base_endpoint.rstrip('/'),
+                    "azure_deployment": FOUNDRY_MODEL_DEPLOYMENT_NAME,
+                    "api_version": "2024-10-21",
+                }
+                
+                credential = DefaultAzureCredential()
+                # Use is_reasoning_model=True for gpt-5.x models that require max_completion_tokens
+                evaluator = ToolCallAccuracyEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
+                
+                result = evaluator(
+                    query=query,
+                    tool_calls=tool_calls,
+                    tool_definitions=tool_definitions
+                )
+                
+                return MCPToolResult(
+                    content=[{
+                        "type": "text",
+                        "text": json.dumps({
+                            "evaluator": "ToolCallAccuracyEvaluator",
+                            "query": query[:100] + "..." if len(query) > 100 else query,
+                            "tool_calls_count": len(tool_calls),
+                            "score": result.get("tool_call_accuracy", 0),
+                            "explanation": result.get("tool_call_accuracy_reason", ""),
+                            "threshold_recommendation": 3,
+                            "passed": result.get("tool_call_accuracy", 0) >= 3
+                        }, indent=2)
+                    }]
+                )
+            except Exception as e:
+                logger.error(f"Error in evaluate_tool_call_accuracy: {e}")
+                return MCPToolResult(
+                    content=[{"type": "text", "text": f"Evaluation error: {str(e)}"}],
+                    isError=True
+                )
+        
+        elif tool_name == "evaluate_task_adherence":
+            if not EVALUATION_AVAILABLE:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "Azure AI Evaluation SDK not available"}],
+                    isError=True
+                )
+            
+            if not FOUNDRY_PROJECT_ENDPOINT:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "FOUNDRY_PROJECT_ENDPOINT not configured"}],
+                    isError=True
+                )
+            
+            query = arguments.get("query")
+            response = arguments.get("response")
+            tool_calls = arguments.get("tool_calls", [])
+            system_message = arguments.get("system_message", "")
+            
+            if not query or not response:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "Both 'query' and 'response' are required"}],
+                    isError=True
+                )
+            
+            try:
+                # Extract base endpoint (remove /api/projects/... path if present)
+                base_endpoint = FOUNDRY_PROJECT_ENDPOINT.split('/api/projects')[0] if '/api/projects' in FOUNDRY_PROJECT_ENDPOINT else FOUNDRY_PROJECT_ENDPOINT
+                model_config = {
+                    "azure_endpoint": base_endpoint.rstrip('/'),
+                    "azure_deployment": FOUNDRY_MODEL_DEPLOYMENT_NAME,
+                    "api_version": "2024-10-21",
+                }
+                
+                credential = DefaultAzureCredential()
+                # Use is_reasoning_model=True for gpt-5.x models that require max_completion_tokens
+                evaluator = TaskAdherenceEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
+                
+                # Build kwargs for evaluator
+                eval_kwargs = {
+                    "query": query,
+                    "response": response,
+                }
+                if tool_calls:
+                    eval_kwargs["tool_calls"] = tool_calls
+                if system_message:
+                    eval_kwargs["system_message"] = system_message
+                
+                result = evaluator(**eval_kwargs)
+                
+                return MCPToolResult(
+                    content=[{
+                        "type": "text",
+                        "text": json.dumps({
+                            "evaluator": "TaskAdherenceEvaluator",
+                            "query": query[:100] + "..." if len(query) > 100 else query,
+                            "flagged": result.get("task_adherence", False),
+                            "reasoning": result.get("task_adherence_reason", ""),
+                            "passed": not result.get("task_adherence", True)  # flagged=True means failure
+                        }, indent=2)
+                    }]
+                )
+            except Exception as e:
+                logger.error(f"Error in evaluate_task_adherence: {e}")
+                return MCPToolResult(
+                    content=[{"type": "text", "text": f"Evaluation error: {str(e)}"}],
+                    isError=True
+                )
+        
+        elif tool_name == "run_agent_evaluation":
+            if not EVALUATION_AVAILABLE:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "Azure AI Evaluation SDK not available"}],
+                    isError=True
+                )
+            
+            if not FOUNDRY_PROJECT_ENDPOINT:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "FOUNDRY_PROJECT_ENDPOINT not configured"}],
+                    isError=True
+                )
+            
+            query = arguments.get("query")
+            response = arguments.get("response")
+            tool_calls = arguments.get("tool_calls", [])
+            tool_definitions = arguments.get("tool_definitions")
+            system_message = arguments.get("system_message", "")
+            thresholds = arguments.get("thresholds", {
+                "intent_resolution": 3,
+                "tool_call_accuracy": 3,
+                "task_adherence": 3
+            })
+            
+            if not query or not response:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "Both 'query' and 'response' are required"}],
+                    isError=True
+                )
+            
+            # Use default tool definitions if not provided
+            if not tool_definitions:
+                tool_definitions = [
+                    {"name": "next_best_action", "description": "Analyzes a task and generates an action plan.", "parameters": {"type": "object", "properties": {"task": {"type": "string"}}, "required": ["task"]}}
+                ]
+            
+            try:
+                # Extract base endpoint (remove /api/projects/... path if present)
+                base_endpoint = FOUNDRY_PROJECT_ENDPOINT.split('/api/projects')[0] if '/api/projects' in FOUNDRY_PROJECT_ENDPOINT else FOUNDRY_PROJECT_ENDPOINT
+                model_config = {
+                    "azure_endpoint": base_endpoint.rstrip('/'),
+                    "azure_deployment": FOUNDRY_MODEL_DEPLOYMENT_NAME,
+                    "api_version": "2024-10-21",
+                }
+                
+                credential = DefaultAzureCredential()
+                results = {
+                    "query": query[:200] + "..." if len(query) > 200 else query,
+                    "response_preview": response[:200] + "..." if len(response) > 200 else response,
+                    "evaluations": {},
+                    "all_passed": True
+                }
+                
+                # Run IntentResolutionEvaluator
+                try:
+                    intent_eval = IntentResolutionEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
+                    intent_result = intent_eval(query=query, response=response)
+                    intent_score = intent_result.get("intent_resolution", 0)
+                    results["evaluations"]["intent_resolution"] = {
+                        "score": intent_score,
+                        "threshold": thresholds.get("intent_resolution", 3),
+                        "passed": intent_score >= thresholds.get("intent_resolution", 3),
+                        "explanation": intent_result.get("intent_resolution_reason", "")
+                    }
+                    if not results["evaluations"]["intent_resolution"]["passed"]:
+                        results["all_passed"] = False
+                except Exception as e:
+                    results["evaluations"]["intent_resolution"] = {"error": str(e), "passed": False}
+                    results["all_passed"] = False
+                
+                # Run ToolCallAccuracyEvaluator (if tool_calls provided)
+                if tool_calls:
+                    try:
+                        tool_eval = ToolCallAccuracyEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
+                        tool_result = tool_eval(query=query, tool_calls=tool_calls, tool_definitions=tool_definitions)
+                        tool_score = tool_result.get("tool_call_accuracy", 0)
+                        results["evaluations"]["tool_call_accuracy"] = {
+                            "score": tool_score,
+                            "threshold": thresholds.get("tool_call_accuracy", 3),
+                            "passed": tool_score >= thresholds.get("tool_call_accuracy", 3),
+                            "explanation": tool_result.get("tool_call_accuracy_reason", "")
+                        }
+                        if not results["evaluations"]["tool_call_accuracy"]["passed"]:
+                            results["all_passed"] = False
+                    except Exception as e:
+                        results["evaluations"]["tool_call_accuracy"] = {"error": str(e), "passed": False}
+                        results["all_passed"] = False
+                else:
+                    results["evaluations"]["tool_call_accuracy"] = {"skipped": True, "reason": "No tool_calls provided"}
+                
+                # Run TaskAdherenceEvaluator
+                try:
+                    task_eval = TaskAdherenceEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
+                    eval_kwargs = {"query": query, "response": response}
+                    if tool_calls:
+                        eval_kwargs["tool_calls"] = tool_calls
+                    if system_message:
+                        eval_kwargs["system_message"] = system_message
+                    
+                    task_result = task_eval(**eval_kwargs)
+                    flagged = task_result.get("task_adherence", False)
+                    results["evaluations"]["task_adherence"] = {
+                        "flagged": flagged,
+                        "passed": not flagged,  # flagged=True means failure
+                        "reasoning": task_result.get("task_adherence_reason", "")
+                    }
+                    if not results["evaluations"]["task_adherence"]["passed"]:
+                        results["all_passed"] = False
+                except Exception as e:
+                    results["evaluations"]["task_adherence"] = {"error": str(e), "passed": False}
+                    results["all_passed"] = False
+                
+                return MCPToolResult(
+                    content=[{
+                        "type": "text",
+                        "text": json.dumps(results, indent=2)
+                    }]
+                )
+            except Exception as e:
+                logger.error(f"Error in run_agent_evaluation: {e}")
+                return MCPToolResult(
+                    content=[{"type": "text", "text": f"Evaluation error: {str(e)}"}],
+                    isError=True
+                )
+        
+        elif tool_name == "run_batch_evaluation":
+            if not EVALUATION_AVAILABLE:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "Azure AI Evaluation SDK not available"}],
+                    isError=True
+                )
+            
+            if not FOUNDRY_PROJECT_ENDPOINT:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "FOUNDRY_PROJECT_ENDPOINT not configured"}],
+                    isError=True
+                )
+            
+            evaluation_data = arguments.get("evaluation_data", [])
+            thresholds = arguments.get("thresholds", {
+                "intent_resolution": 3,
+                "tool_call_accuracy": 3,
+                "task_adherence": 3
+            })
+            
+            if not evaluation_data:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "'evaluation_data' array is required"}],
+                    isError=True
+                )
+            
+            try:
+                # Extract base endpoint (remove /api/projects/... path if present)
+                base_endpoint = FOUNDRY_PROJECT_ENDPOINT.split('/api/projects')[0] if '/api/projects' in FOUNDRY_PROJECT_ENDPOINT else FOUNDRY_PROJECT_ENDPOINT
+                model_config = {
+                    "azure_endpoint": base_endpoint.rstrip('/'),
+                    "azure_deployment": FOUNDRY_MODEL_DEPLOYMENT_NAME,
+                    "api_version": "2024-10-21",
+                }
+                
+                credential = DefaultAzureCredential()
+                
+                # Initialize evaluators once
+                # Use is_reasoning_model=True for gpt-5.x models that require max_completion_tokens
+                intent_eval = IntentResolutionEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
+                tool_eval = ToolCallAccuracyEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
+                task_eval = TaskAdherenceEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
+                
+                # Default tool definitions
+                default_tool_defs = [
+                    {"name": "next_best_action", "description": "Analyzes a task and generates an action plan.", "parameters": {"type": "object", "properties": {"task": {"type": "string"}}, "required": ["task"]}}
+                ]
+                
+                all_results = []
+                intent_scores = []
+                tool_scores = []
+                task_passes = []
+                
+                for idx, item in enumerate(evaluation_data):
+                    query = item.get("query", "")
+                    response = item.get("response", "")
+                    tool_calls = item.get("tool_calls", [])
+                    system_message = item.get("system_message", "")
+                    
+                    row_result = {
+                        "index": idx,
+                        "query_preview": query[:50] + "..." if len(query) > 50 else query,
+                    }
+                    
+                    # Intent Resolution
+                    try:
+                        intent_result = intent_eval(query=query, response=response)
+                        score = intent_result.get("intent_resolution", 0)
+                        # Handle string scores from evaluator
+                        if isinstance(score, str):
+                            try:
+                                score = int(float(score))
+                            except (ValueError, TypeError):
+                                score = 0
+                        intent_scores.append(score)
+                        row_result["intent_resolution"] = {
+                            "score": score,
+                            "passed": score >= thresholds.get("intent_resolution", 3)
+                        }
+                    except Exception as e:
+                        row_result["intent_resolution"] = {"error": str(e)}
+                    
+                    # Tool Call Accuracy
+                    if tool_calls:
+                        try:
+                            tool_result = tool_eval(query=query, tool_calls=tool_calls, tool_definitions=default_tool_defs)
+                            score = tool_result.get("tool_call_accuracy", 0)
+                            # Handle string scores from evaluator
+                            if isinstance(score, str):
+                                try:
+                                    score = int(float(score))
+                                except (ValueError, TypeError):
+                                    score = 0
+                            tool_scores.append(score)
+                            row_result["tool_call_accuracy"] = {
+                                "score": score,
+                                "passed": score >= thresholds.get("tool_call_accuracy", 3)
+                            }
+                        except Exception as e:
+                            row_result["tool_call_accuracy"] = {"error": str(e)}
+                    
+                    # Task Adherence
+                    try:
+                        eval_kwargs = {"query": query, "response": response}
+                        if tool_calls:
+                            eval_kwargs["tool_calls"] = tool_calls
+                        if system_message:
+                            eval_kwargs["system_message"] = system_message
+                        
+                        task_result = task_eval(**eval_kwargs)
+                        flagged = task_result.get("task_adherence", False)
+                        task_passes.append(not flagged)
+                        row_result["task_adherence"] = {
+                            "flagged": flagged,
+                            "passed": not flagged
+                        }
+                    except Exception as e:
+                        row_result["task_adherence"] = {"error": str(e)}
+                    
+                    all_results.append(row_result)
+                
+                # Calculate aggregate metrics
+                summary = {
+                    "total_evaluated": len(evaluation_data),
+                    "metrics": {}
+                }
+                
+                if intent_scores:
+                    summary["metrics"]["intent_resolution"] = {
+                        "average_score": round(sum(intent_scores) / len(intent_scores), 2),
+                        "pass_rate": round(sum(1 for s in intent_scores if s >= thresholds.get("intent_resolution", 3)) / len(intent_scores) * 100, 1),
+                        "min": min(intent_scores),
+                        "max": max(intent_scores)
+                    }
+                
+                if tool_scores:
+                    summary["metrics"]["tool_call_accuracy"] = {
+                        "average_score": round(sum(tool_scores) / len(tool_scores), 2),
+                        "pass_rate": round(sum(1 for s in tool_scores if s >= thresholds.get("tool_call_accuracy", 3)) / len(tool_scores) * 100, 1),
+                        "min": min(tool_scores),
+                        "max": max(tool_scores)
+                    }
+                
+                if task_passes:
+                    summary["metrics"]["task_adherence"] = {
+                        "pass_rate": round(sum(task_passes) / len(task_passes) * 100, 1),
+                        "passed_count": sum(task_passes),
+                        "failed_count": len(task_passes) - sum(task_passes)
+                    }
+                
+                return MCPToolResult(
+                    content=[{
+                        "type": "text",
+                        "text": json.dumps({
+                            "summary": summary,
+                            "thresholds": thresholds,
+                            "per_row_results": all_results
+                        }, indent=2)
+                    }]
+                )
+            except Exception as e:
+                logger.error(f"Error in run_batch_evaluation: {e}")
+                return MCPToolResult(
+                    content=[{"type": "text", "text": f"Batch evaluation error: {str(e)}"}],
                     isError=True
                 )
         

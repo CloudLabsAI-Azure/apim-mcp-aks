@@ -421,6 +421,19 @@ module foundryRoleAssignmentMcp './app/foundry-RoleAssignment.bicep' = {
   }
 }
 
+// Role assignment: Azure AI Developer for MCP server identity (required for evaluation SDK)
+// This role includes Microsoft.CognitiveServices/accounts/AIServices/agents/write data action
+var AzureAIDeveloper = '64702f94-c441-49e6-a78b-ef80e0188fee'
+module foundryRoleAssignmentMcpAIDeveloper './app/foundry-RoleAssignment.bicep' = {
+  name: 'foundryRoleAssignmentMcpAIDeveloper'
+  scope: rg
+  params: {
+    foundryAccountName: foundry.outputs.foundryAccountName
+    roleDefinitionID: AzureAIDeveloper
+    principalID: mcpUserAssignedIdentity.outputs.identityPrincipalId
+  }
+}
+
 // =========================================
 // CosmosDB NoSQL for Task and Plan Storage
 // =========================================

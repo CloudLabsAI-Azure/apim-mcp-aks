@@ -44,10 +44,25 @@ This project follows the [SpecKit Methodology](https://speckit.dev) for agent go
 
 ### Prerequisites
 
+#### Development Tools
+- [Python 3.11+](https://www.python.org/downloads/)
+- [pip](https://pip.pypa.io/en/stable/installation/)
+- [uv](https://docs.astral.sh/uv/getting-started/installation/)
+- [VS Code](https://code.visualstudio.com/download)
+- [GitHub Copilot](https://github.com/features/copilot) with premium coding models (GPT-5.2-Codex, Claude 4.5 Opus, Sonnet)
+
+#### Azure & Container Tools
 - [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
 - [Azure Developer CLI](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
-- [kubectl](https://kubernetes.io/docs/tasks/tools/)
-- [Docker](https://docs.docker.com/get-docker/)
+- [kubectl](https://kubernetes.io/docs/tasks/tools/) (with [port-forward](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_port-forward/) capability)
+- [Docker Desktop](https://docs.docker.com/desktop/)
+
+#### Azure Access Requirements
+- Azure Subscription with Owner privileges (recommended)
+- Quota for compute used in AKS node pool VMs
+- Quota for language and embedding models in [Azure AI Foundry](https://learn.microsoft.com/azure/ai-foundry)
+- Ability to configure [Agents 365](https://learn.microsoft.com/microsoft-365-copilot/extensibility/) integration
+- Access to [Microsoft Fabric Workspace](https://learn.microsoft.com/fabric/) and [Fabric IQ](https://learn.microsoft.com/fabric/get-started/fabric-iq)
 
 ### Quick Start
 
@@ -141,6 +156,7 @@ python tests/test_apim_mcp_connection.py --use-az-token
 ### Python Frameworks
 - [aiohttp](https://docs.aiohttp.org/)
 - [Azure Identity SDK](https://learn.microsoft.com/python/api/azure-identity/)
+- [pip](https://pip.pypa.io/)
 - [Azure AI Evaluation SDK](https://learn.microsoft.com/azure/ai-studio/how-to/develop/evaluate-sdk)
 - [Azure Cosmos SDK](https://learn.microsoft.com/python/api/azure-cosmos/)
 - [Azure Search Documents SDK](https://learn.microsoft.com/python/api/azure-search-documents/)
@@ -153,5 +169,8 @@ python tests/test_apim_mcp_connection.py --use-az-token
 - [Uvicorn](https://www.uvicorn.org/)
 
 ### DevOps Tools
-- [Docker](https://docs.docker.com/)
+- [Docker Desktop](https://docs.docker.com/desktop/)
+- [GitHub Copilot](https://github.com/features/copilot)
 - [kubectl](https://kubernetes.io/docs/reference/kubectl/)
+- [uv](https://docs.astral.sh/uv/)
+- [VS Code](https://code.visualstudio.com/)

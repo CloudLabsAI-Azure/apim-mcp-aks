@@ -1,5 +1,5 @@
 {
-  "id": "task-instruction-cicd-kubernetes",
+  "id": "task-instruction-agents-kubernetes",
   "title": "CI/CD Pipeline Setup for Microservices on Kubernetes",
   "category": "devops",
   "intent": "infrastructure_automation",

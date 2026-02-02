@@ -128,15 +128,16 @@ python tests/test_apim_mcp_connection.py --use-az-token
 
 ## Documentation
 
-| Document                                                                              | Description                                |
-| ------------------------------------------------------------------------------------- | ------------------------------------------ |
-| [AGENTS_ARCHITECTURE.md](docs/AGENTS_ARCHITECTURE.md)                                 | System architecture and component diagrams |
-| [AGENTS_DEPLOYMENT_NOTES.md](docs/AGENTS_DEPLOYMENT_NOTES.md)                         | Detailed deployment notes                  |
-| [AGENTS_IDENTITY_DESIGN.md](docs/AGENTS_IDENTITY_DESIGN.md)                           | Identity architecture design               |
-| [AGENTS_AGENT_LIGHTNING_DESIGN.md](docs/AGENTS_AGENT_LIGHTNING_DESIGN.md)             | Fine-tuning and RL documentation           |
-| [AGENTS_AGENT_LIGHTNING_TEST_RESULTS.md](docs/AGENTS_AGENT_LIGHTNING_TEST_RESULTS.md) | Lightning test results                     |
-| [AGENTS_EVALUATIONS.md](docs/AGENTS_EVALUATIONS.md)                                   | Agent evaluation framework                 |
-| [AGENTS_TEST_RESULTS.md](docs/AGENTS_TEST_RESULTS.md)                                 | Integration test results                   |
+| Document                                                                              | Description                                      |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| [AGENTS_ARCHITECTURE.md](docs/AGENTS_ARCHITECTURE.md)                                 | System architecture and component diagrams       |
+| [AGENTS_APPROVALS.md](docs/AGENTS_APPROVALS.md)                                       | Agent 365 approvals and human-in-the-loop (HITL) |
+| [AGENTS_DEPLOYMENT_NOTES.md](docs/AGENTS_DEPLOYMENT_NOTES.md)                         | Detailed deployment notes                        |
+| [AGENTS_IDENTITY_DESIGN.md](docs/AGENTS_IDENTITY_DESIGN.md)                           | Identity architecture design                     |
+| [AGENTS_AGENT_LIGHTNING_DESIGN.md](docs/AGENTS_AGENT_LIGHTNING_DESIGN.md)             | Fine-tuning and RL documentation                 |
+| [AGENTS_AGENT_LIGHTNING_TEST_RESULTS.md](docs/AGENTS_AGENT_LIGHTNING_TEST_RESULTS.md) | Lightning test results                           |
+| [AGENTS_EVALUATIONS.md](docs/AGENTS_EVALUATIONS.md)                                   | Agent evaluation framework                       |
+| [AGENTS_TEST_RESULTS.md](docs/AGENTS_TEST_RESULTS.md)                                 | Integration test results                         |
 
 ---
 

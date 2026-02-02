@@ -68,6 +68,22 @@ except ImportError:
     EVALUATION_AVAILABLE = False
     # Logger not yet defined, will log later in startup
 
+# Agent 365 / Entra Agent Registry imports (for Agents approval workflows)
+try:
+    from agent365_approval import (
+        ApprovalContract,
+        ApprovalDecision,
+        AgentValidationStatus,
+        Agent365AvailabilityChecker,
+        ApprovalWorkflowEngine,
+        get_approval_workflow_engine,
+        require_agents_approval,
+    )
+    AGENT365_APPROVAL_AVAILABLE = True
+except ImportError:
+    AGENT365_APPROVAL_AVAILABLE = False
+    # Fallback: approval features will be disabled
+
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -80,6 +96,12 @@ logger = logging.getLogger(__name__)
 # Log evaluation availability (after logger is defined)
 if not EVALUATION_AVAILABLE:
     logger.warning("azure-ai-evaluation not available - evaluation tools will be disabled")
+
+# Log Agent 365 approval availability
+if AGENT365_APPROVAL_AVAILABLE:
+    logger.info("Agent 365 approval workflow available - Agents tasks will require human-in-the-loop approval")
+else:
+    logger.warning("agent365_approval not available - Agents approval workflows will be disabled")
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -1025,6 +1047,102 @@ def next_best_action_tool(task: str) -> str:
         task_id = str(uuid.uuid4())
         timestamp = datetime.utcnow().isoformat()
         
+        # ================================================================
+        # AGENT 365 CI/CD APPROVAL CHECKPOINT
+        # For CI/CD pipeline tasks, require human-in-the-loop approval
+        # via Microsoft Teams before proceeding with plan generation.
+        # ================================================================
+        approval_result = None
+        agents_approval_required = False
+        CICD_TASK_PATTERN = "Set up a Agents pipeline for deploying microservices to Kubernetes"
+        
+        if AGENT365_APPROVAL_AVAILABLE and CICD_TASK_PATTERN.lower() in task.lower():
+            agents_approval_required = True
+            logger.info("=" * 70)
+            logger.info("🔒 Agents APPROVAL CHECKPOINT TRIGGERED")
+            logger.info("=" * 70)
+            logger.info(f"Task: {task}")
+            logger.info("This task requires human-in-the-loop approval via Microsoft Teams")
+            
+            try:
+                # Initialize approval workflow engine
+                approval_engine = get_approval_workflow_engine()
+                
+                # Create approval request
+                loop = asyncio.new_event_loop()
+                approval_contract = loop.run_until_complete(
+                    approval_engine.initiate_approval(
+                        task=task,
+                        requested_by=os.getenv("AZURE_CLIENT_ID", "mcp-agent"),
+                        environment=os.getenv("DEPLOYMENT_ENVIRONMENT", "staging"),
+                        cluster=os.getenv("AKS_CLUSTER_NAME", "aks-mcp-cluster"),
+                        namespace=os.getenv("K8S_NAMESPACE", "mcp-agents"),
+                        image_tags=[os.getenv("IMAGE_TAG", "latest")],
+                        commit_sha=os.getenv("COMMIT_SHA", "unknown"),
+                        pipeline_url=os.getenv("PIPELINE_URL", ""),
+                        rollback_url=os.getenv("ROLLBACK_URL", ""),
+                    )
+                )
+                loop.close()
+                
+                logger.info(f"📋 Approval ID: {approval_contract.approval_id}")
+                logger.info(f"⏳ Waiting for approval in Microsoft Teams...")
+                
+                # NOTE: In production, this would block until approval is received
+                # For demo/testing, we'll check if approval was pre-configured
+                approval_result = {
+                    "approval_id": approval_contract.approval_id,
+                    "status": approval_contract.decision,
+                    "agent_validation": approval_contract.agent_validation,
+                    "message": "Approval request sent to Microsoft Teams",
+                    "approval_contract": approval_contract.to_dict()
+                }
+                
+                # If approval is still pending, return early with approval info
+                if approval_contract.decision == ApprovalDecision.PENDING.value:
+                    logger.warning("⚠️ Approval is pending - task execution blocked")
+                    return json.dumps({
+                        "task_id": task_id,
+                        "task": task,
+                        "status": "approval_pending",
+                        "approval": approval_result,
+                        "message": "Agents deployment requires human approval via Microsoft Teams. "
+                                   "Please approve the request in Teams to proceed.",
+                        "approval_contract": {
+                            "approval_id": approval_contract.approval_id,
+                            "requested_by": approval_contract.requested_by,
+                            "task": task,
+                            "environment": approval_contract.environment,
+                            "decision": approval_contract.decision,
+                            "approved_by": approval_contract.approved_by,
+                            "timestamp": approval_contract.timestamp,
+                            "agent_validation": approval_contract.agent_validation
+                        }
+                    }, indent=2)
+                
+                # Check if approval was rejected
+                if approval_contract.decision == ApprovalDecision.REJECTED.value:
+                    logger.error(f"❌ Approval rejected by {approval_contract.approved_by}")
+                    return json.dumps({
+                        "task_id": task_id,
+                        "task": task,
+                        "status": "approval_rejected",
+                        "approval": approval_result,
+                        "error": f"Agents deployment rejected: {approval_contract.comment or 'No reason provided'}",
+                        "approval_contract": approval_contract.to_dict()
+                    }, indent=2)
+                
+                logger.info(f"✅ Approval granted by {approval_contract.approved_by}")
+                logger.info(f"✅ Agent validation: {approval_contract.agent_validation}")
+                
+            except Exception as e:
+                logger.error(f"Approval workflow error: {e}")
+                approval_result = {
+                    "error": str(e),
+                    "status": "approval_error",
+                    "message": "Approval workflow encountered an error. Proceeding with caution."
+                }
+        
         # Step 1: Generate embedding for the task
         logger.info(f"Generating embedding for task: {task[:100]}...")
         task_embedding = get_embedding(task)
@@ -1194,7 +1312,9 @@ def next_best_action_tool(task: str) -> str:
                 'embedding_dimensions': len(task_embedding),
                 'stored_in_cosmos': True,
                 'long_term_memory_used': len(task_instructions) > 0,
-                'facts_memory_used': len(domain_facts) > 0
+                'facts_memory_used': len(domain_facts) > 0,
+                'agents_approval_required': agents_approval_required,
+                'approval_result': approval_result
             }
         }
         
@@ -1528,7 +1648,7 @@ def get_customer_churn_facts_tool(risk_level: str = None) -> str:
 @ai_function
 def get_pipeline_health_facts_tool(include_failures: bool = True) -> str:
     """
-    Retrieve CI/CD pipeline health facts from Fabric IQ.
+    Retrieve Agents pipeline health facts from Fabric IQ.
     Returns observations about pipeline success rates and failures.
     
     Args:

@@ -32,12 +32,12 @@ This directory contains ontology definitions and sample data for integration wit
 - Transaction history with various transaction types
 - Engagement events tracking feature usage
 
-### 2. CI/CD Pipeline (`cicd_pipeline_ontology.json`)
+### 2. Agents Pipeline (`agents_pipeline_ontology.json`)
 
-**Use Case**: Set up CI/CD pipeline for deploying microservices to Kubernetes
+**Use Case**: Set up Agents pipeline for deploying microservices to Kubernetes
 
 **Entity Types**:
-- `Pipeline` - CI/CD pipeline definition with configuration
+- `Pipeline` - Agents pipeline definition with configuration
 - `PipelineRun` - Individual execution with status and metrics
 - `Deployment` - Kubernetes deployment event
 - `Cluster` - Target Kubernetes cluster
@@ -137,7 +137,7 @@ The following MCP tools are available for querying facts:
 |------|-------------|
 | `search_facts` | Semantic search across all domains |
 | `get_customer_churn_facts` | Customer churn analysis facts |
-| `get_pipeline_health_facts` | CI/CD pipeline health facts |
+| `get_pipeline_health_facts` | Agents pipeline health facts |
 | `get_user_security_facts` | User security and access facts |
 | `cross_domain_analysis` | Cross-domain reasoning |
 | `get_facts_memory_stats` | Facts memory statistics |
@@ -171,7 +171,7 @@ FABRIC_ONTOLOGY_NAME=agent-ontology
 │                           Domain Ontologies                                 │
 ├──────────────────┬───────────────────────┬──────────────────────────────────┤
 │    Customer      │       DevOps          │        User Management           │
-│  Churn Analysis  │    CI/CD Pipeline     │       Authentication             │
+│  Churn Analysis  │    Agents Pipeline     │       Authentication             │
 ├──────────────────┼───────────────────────┼──────────────────────────────────┤
 │  - Customer      │  - Pipeline           │  - User                          │
 │  - Transaction   │  - PipelineRun        │  - Session                       │

@@ -14,14 +14,17 @@ param principalID string
 @allowed(['ServicePrincipal', 'User', 'Group'])
 param principalType string = 'ServicePrincipal'
 
+@description('Optional suffix to make role assignment name unique across deployments')
+param nameSuffix string = ''
+
 // Reference existing search service
 resource searchService 'Microsoft.Search/searchServices@2024-06-01-preview' existing = {
   name: searchServiceName
 }
 
-// Role Assignment
+// Role Assignment - name is deterministic based on scope, principal, and role to ensure idempotency
 resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(searchService.id, principalID, roleDefinitionID)
+  name: empty(nameSuffix) ? guid(searchService.id, principalID, roleDefinitionID) : guid(searchService.id, principalID, roleDefinitionID, nameSuffix)
   scope: searchService
   properties: {
     roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', roleDefinitionID)

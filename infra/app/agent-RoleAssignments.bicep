@@ -1,5 +1,6 @@
 // Role assignments for Next Best Action Agent Identity
 // This module assigns all required roles to the agent identity for accessing Azure resources
+// Note: Role assignment names use 'agent' suffix to differentiate from MCP identity assignments
 
 @description('Principal ID of the agent identity')
 param agentPrincipalId string
@@ -15,6 +16,9 @@ param storageAccountName string
 
 @description('Azure AI Foundry account name')
 param foundryAccountName string
+
+@description('Unique suffix for role assignment names to ensure idempotency')
+param deploymentSuffix string = 'agent-v1'
 
 // =========================================
 // Built-in Role Definition IDs
@@ -46,7 +50,7 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' existi
 }
 
 resource cosmosRoleAssignmentAgent 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = {
-  name: guid(cosmosAccount.id, agentPrincipalId, CosmosDBDataContributor, 'agent')
+  name: guid(cosmosAccount.id, agentPrincipalId, CosmosDBDataContributor, deploymentSuffix)
   parent: cosmosAccount
   properties: {
     principalId: agentPrincipalId
@@ -65,7 +69,7 @@ resource searchService 'Microsoft.Search/searchServices@2024-06-01-preview' exis
 
 // Search Index Data Contributor - read/write data in indexes
 resource searchIndexDataContributorAgent 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(searchService.id, agentPrincipalId, SearchIndexDataContributor, 'agent')
+  name: guid(searchService.id, agentPrincipalId, SearchIndexDataContributor, deploymentSuffix)
   scope: searchService
   properties: {
     roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', SearchIndexDataContributor)
@@ -76,7 +80,7 @@ resource searchIndexDataContributorAgent 'Microsoft.Authorization/roleAssignment
 
 // Search Service Contributor - manage indexes and knowledge bases
 resource searchServiceContributorAgent 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(searchService.id, agentPrincipalId, SearchServiceContributor, 'agent')
+  name: guid(searchService.id, agentPrincipalId, SearchServiceContributor, deploymentSuffix)
   scope: searchService
   properties: {
     roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', SearchServiceContributor)
@@ -95,7 +99,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' existing 
 
 // Storage Blob Data Owner - full access to blob storage
 resource storageBlobDataOwnerAgent 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storageAccount.id, agentPrincipalId, StorageBlobDataOwner, 'agent')
+  name: guid(storageAccount.id, agentPrincipalId, StorageBlobDataOwner, deploymentSuffix)
   scope: storageAccount
   properties: {
     roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', StorageBlobDataOwner)
@@ -106,7 +110,7 @@ resource storageBlobDataOwnerAgent 'Microsoft.Authorization/roleAssignments@2022
 
 // Storage Queue Data Contributor - for message processing
 resource storageQueueDataContributorAgent 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storageAccount.id, agentPrincipalId, StorageQueueDataContributor, 'agent')
+  name: guid(storageAccount.id, agentPrincipalId, StorageQueueDataContributor, deploymentSuffix)
   scope: storageAccount
   properties: {
     roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', StorageQueueDataContributor)
@@ -125,7 +129,7 @@ resource foundryAccount 'Microsoft.CognitiveServices/accounts@2025-06-01' existi
 
 // Cognitive Services OpenAI User - access to models (GPT-5.2-chat)
 resource openAIUserAgent 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(foundryAccount.id, agentPrincipalId, CognitiveServicesOpenAIUser, 'agent')
+  name: guid(foundryAccount.id, agentPrincipalId, CognitiveServicesOpenAIUser, deploymentSuffix)
   scope: foundryAccount
   properties: {
     roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', CognitiveServicesOpenAIUser)
@@ -136,7 +140,7 @@ resource openAIUserAgent 'Microsoft.Authorization/roleAssignments@2022-04-01' = 
 
 // Cognitive Services OpenAI Contributor - manage deployments
 resource openAIContributorAgent 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(foundryAccount.id, agentPrincipalId, CognitiveServicesOpenAIContributor, 'agent')
+  name: guid(foundryAccount.id, agentPrincipalId, CognitiveServicesOpenAIContributor, deploymentSuffix)
   scope: foundryAccount
   properties: {
     roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', CognitiveServicesOpenAIContributor)

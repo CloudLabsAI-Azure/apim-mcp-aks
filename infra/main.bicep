@@ -80,6 +80,21 @@ param developerPrincipalId string = ''
 @description('Developer IP address for Cosmos DB firewall access (optional, for local development)')
 param developerIpAddress string = ''
 
+// =========================================
+// Agents Approval Logic App Configuration
+// =========================================
+@description('Enable the approval Logic App for CI/CD governance')
+param approvalLogicAppEnabled bool = false
+
+@description('Teams channel ID for approval notifications')
+param teamsChannelId string = ''
+
+@description('Teams group/team ID for approval notifications')
+param teamsGroupId string = ''
+
+@description('Approval timeout in hours')
+param approvalTimeoutHours int = 2
+
 // MCP Client APIM gateway specific variables
 
 var oauth_scopes = 'openid https://graph.microsoft.com/.default'
@@ -777,6 +792,26 @@ module appInsightsRoleAssignmentAgent './core/monitor/appinsights-access.bicep' 
   }
 }
 
+// =========================================
+// Agents Approval Logic App
+// =========================================
+// Deploys Azure Logic App for Teams-based approval workflow with CosmosDB audit logging
+module agentsApprovalLogicApp './app/agents-approval-logicapp.bicep' = if (approvalLogicAppEnabled) {
+  name: 'agentsApprovalLogicApp'
+  scope: rg
+  params: {
+    logicAppName: '${abbrs.logicWorkflows}approval-${resourceToken}'
+    location: location
+    tags: tags
+    cosmosDbAccountName: cosmosAccount.outputs.name
+    cosmosDbDatabaseName: cosmosDatabaseName
+    cosmosDbContainerName: 'approvals'
+    teamsChannelId: teamsChannelId
+    teamsGroupId: teamsGroupId
+    approvalTimeoutHours: approvalTimeoutHours
+    userAssignedIdentityId: mcpUserAssignedIdentity.outputs.identityId
+  }
+}
 
 
 // App outputs
@@ -837,4 +872,11 @@ output AGENT_IDENTITY_BLUEPRINT_APP_ID string = agentIdentityEnabled ? agentIden
 output AGENT_IDENTITY_APP_ID string = agentIdentityEnabled ? nextBestActionAgentIdentity!.outputs.agentIdentityAppId : ''
 output AGENT_IDENTITY_PRINCIPAL_ID string = agentIdentityEnabled ? nextBestActionAgentIdentity!.outputs.agentIdentityPrincipalId : ''
 output AGENT_IDENTITY_DISPLAY_NAME string = agentIdentityEnabled ? nextBestActionAgentIdentity!.outputs.agentDisplayName : ''
+
+// =========================================
+// Agents Approval Logic App outputs
+// =========================================
+output APPROVAL_LOGIC_APP_ENABLED bool = approvalLogicAppEnabled
+output APPROVAL_LOGIC_APP_TRIGGER_URL string = approvalLogicAppEnabled ? agentsApprovalLogicApp!.outputs.logicAppTriggerUrl : ''
+output APPROVAL_LOGIC_APP_NAME string = approvalLogicAppEnabled ? agentsApprovalLogicApp!.outputs.logicAppName : ''
 

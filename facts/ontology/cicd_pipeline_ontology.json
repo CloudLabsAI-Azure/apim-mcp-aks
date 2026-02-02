@@ -1,6 +1,6 @@
 {
   "ontology": {
-    "name": "cicd-pipeline-ontology",
+    "name": "agents-pipeline-ontology",
     "version": "1.0.0",
     "description": "CI/CD Pipeline Ontology for Kubernetes Deployments - Fabric IQ integration",
     "domain": "devops",

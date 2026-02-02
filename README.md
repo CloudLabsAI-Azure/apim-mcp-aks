@@ -3,13 +3,26 @@
 The Azure Agents Control Plane governs the complete lifecycle of enterprise AI agents: analysis, design, development, testing, fine-tuning, and evaluation. It enables enterprise-grade AI agent development where Azure provides centralized governance, observability, identity, and compliance—regardless of agent execution location.
 
 **Core Principles:**
+
 - **Azure as Enterprise Control Plane** - Centralized governance with single or multi-cloud execution capability
 - **Specification-Driven Development** - SpecKit methodology ensures structured analysis, design, testing, fine tuning and evaluations
 - **API-First Agent Architecture** - All agent operations flow through Azure API Management with Model Context Protocol (MCP) defining capabilities
 - **Identity-First Security** - Every agent receives a Microsoft Entra ID Agent identity with least-privilege role based authorization control (RBAC)
 - **Continuous Evaluation & Improvement** - Agent Lightning enables fine-tuning through reinforcement learning
 
-![System Architecture](overview.svg)
+The following two animations show the system architecture at runtime and buildtime.
+
+### Runtime Architecture
+
+Runtime Architecture - Describes the request flow through API Management to AKS, workload identity, connections to AI Foundry, Cosmos DB, AI Search, Storage, Agent Lightning, and Fabric with observability through Monitor and App Insights.
+
+![Runtime](runtime.svg)
+
+### Buildtime Architecture
+
+Buildtime Architecture - Describes the developer workflow with VS Code, GitHub Copilot, SpecKit methodology, Python ecosystem, GitHub Actions CI/CD with parallel App Build and Infra Build tracks, deployment to Azure with human-in-the-loop approvals.
+
+![Buildtime](buildtime.svg)
 
 For detailed architecture diagrams and component specifications, see [docs/AGENTS_ARCHITECTURE.md](docs/AGENTS_ARCHITECTURE.md).
 
@@ -24,19 +37,19 @@ This project follows the [SpecKit Methodology](https://speckit.dev) for agent go
 
 ### Governance Model
 
-| Agent Type | Description |
-|------------|-------------|
-| **Single Agent** | One agent with multiple tools |
-| **Multi-Agent Orchestrated** | Multiple specialized agents working together |
-| **Multi-Agent with Approvals** | Orchestrated agents with human oversight |
+| Agent Type                     | Description                                  |
+| ------------------------------ | -------------------------------------------- |
+| **Single Agent**               | One agent with multiple tools                |
+| **Multi-Agent Orchestrated**   | Multiple specialized agents working together |
+| **Multi-Agent with Approvals** | Orchestrated agents with human oversight     |
 
 ### Autonomy Levels
 
-| Level | Description |
-|-------|-------------|
-| **Full Autonomous** | Agent operates without human approval |
+| Level               | Description                            |
+| ------------------- | -------------------------------------- |
+| **Full Autonomous** | Agent operates without human approval  |
 | **Semi Autonomous** | Human approval for specific conditions |
-| **Not Autonomous** | Every action requires approval |
+| **Not Autonomous**  | Every action requires approval         |
 
 ---
 
@@ -45,6 +58,7 @@ This project follows the [SpecKit Methodology](https://speckit.dev) for agent go
 ### Prerequisites
 
 #### Development Tools
+
 - [Python 3.11+](https://www.python.org/downloads/)
 - [pip](https://pip.pypa.io/en/stable/installation/)
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
@@ -52,12 +66,14 @@ This project follows the [SpecKit Methodology](https://speckit.dev) for agent go
 - [GitHub Copilot](https://github.com/features/copilot) with premium coding models (GPT-5.2-Codex, Claude 4.5 Opus, Sonnet)
 
 #### Azure & Container Tools
+
 - [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
 - [Azure Developer CLI](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/) (with [port-forward](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_port-forward/) capability)
 - [Docker Desktop](https://docs.docker.com/desktop/)
 
 #### Azure Access Requirements
+
 - Azure Subscription with Owner privileges (recommended)
 - Quota for compute used in AKS node pool VMs
 - Quota for language and embedding models in [Azure AI Foundry](https://learn.microsoft.com/azure/ai-foundry)
@@ -72,6 +88,7 @@ azd up
 ```
 
 The `azd up` command deploys all infrastructure and automatically configures:
+
 - AKS cluster with Container Registry
 - API Management with OAuth endpoints
 - MCP server deployment with workload identity
@@ -111,21 +128,22 @@ python tests/test_apim_mcp_connection.py --use-az-token
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [AGENTS_ARCHITECTURE.md](docs/AGENTS_ARCHITECTURE.md) | System architecture and component diagrams |
-| [AGENTS_DEPLOYMENT_NOTES.md](docs/AGENTS_DEPLOYMENT_NOTES.md) | Detailed deployment notes |
-| [AGENTS_IDENTITY_DESIGN.md](docs/AGENTS_IDENTITY_DESIGN.md) | Identity architecture design |
-| [AGENTS_AGENT_LIGHTNING_DESIGN.md](docs/AGENTS_AGENT_LIGHTNING_DESIGN.md) | Fine-tuning and RL documentation |
-| [AGENTS_AGENT_LIGHTNING_TEST_RESULTS.md](docs/AGENTS_AGENT_LIGHTNING_TEST_RESULTS.md) | Lightning test results |
-| [AGENTS_EVALUATIONS.md](docs/AGENTS_EVALUATIONS.md) | Agent evaluation framework |
-| [AGENTS_TEST_RESULTS.md](docs/AGENTS_TEST_RESULTS.md) | Integration test results |
+| Document                                                                              | Description                                |
+| ------------------------------------------------------------------------------------- | ------------------------------------------ |
+| [AGENTS_ARCHITECTURE.md](docs/AGENTS_ARCHITECTURE.md)                                 | System architecture and component diagrams |
+| [AGENTS_DEPLOYMENT_NOTES.md](docs/AGENTS_DEPLOYMENT_NOTES.md)                         | Detailed deployment notes                  |
+| [AGENTS_IDENTITY_DESIGN.md](docs/AGENTS_IDENTITY_DESIGN.md)                           | Identity architecture design               |
+| [AGENTS_AGENT_LIGHTNING_DESIGN.md](docs/AGENTS_AGENT_LIGHTNING_DESIGN.md)             | Fine-tuning and RL documentation           |
+| [AGENTS_AGENT_LIGHTNING_TEST_RESULTS.md](docs/AGENTS_AGENT_LIGHTNING_TEST_RESULTS.md) | Lightning test results                     |
+| [AGENTS_EVALUATIONS.md](docs/AGENTS_EVALUATIONS.md)                                   | Agent evaluation framework                 |
+| [AGENTS_TEST_RESULTS.md](docs/AGENTS_TEST_RESULTS.md)                                 | Integration test results                   |
 
 ---
 
 ## References
 
 ### Azure Services
+
 - [Azure AI Foundry](https://learn.microsoft.com/azure/ai-foundry)
 - [Azure AI Search](https://learn.microsoft.com/azure/search/)
 - [Azure API Management](https://learn.microsoft.com/azure/api-management/)
@@ -141,11 +159,13 @@ python tests/test_apim_mcp_connection.py --use-az-token
 - [Microsoft Fabric IQ](https://learn.microsoft.com/fabric/get-started/fabric-iq)
 
 ### Identity & Security
+
 - [Microsoft Entra ID](https://learn.microsoft.com/entra/identity/)
 - [Microsoft Entra Agent Identity](https://learn.microsoft.com/entra/workload-id/)
 - [Workload Identity Federation](https://learn.microsoft.com/azure/aks/workload-identity-overview)
 
 ### Agent Frameworks & Tools
+
 - [Agent Lightning](docs/AGENTS_AGENT_LIGHTNING_DESIGN.md) - Fine-tuning and reinforcement learning
 - [Agents 365](https://learn.microsoft.com/microsoft-365-copilot/extensibility/) - Human-in-the-Loop integration
 - [MCP Inspector](https://github.com/modelcontextprotocol/inspector)
@@ -154,6 +174,7 @@ python tests/test_apim_mcp_connection.py --use-az-token
 - [SpecKit Methodology](https://speckit.dev)
 
 ### Python Frameworks
+
 - [aiohttp](https://docs.aiohttp.org/)
 - [Azure Identity SDK](https://learn.microsoft.com/python/api/azure-identity/)
 - [pip](https://pip.pypa.io/)
@@ -169,6 +190,7 @@ python tests/test_apim_mcp_connection.py --use-az-token
 - [Uvicorn](https://www.uvicorn.org/)
 
 ### DevOps Tools
+
 - [Docker Desktop](https://docs.docker.com/desktop/)
 - [GitHub Copilot](https://github.com/features/copilot)
 - [kubectl](https://kubernetes.io/docs/reference/kubectl/)

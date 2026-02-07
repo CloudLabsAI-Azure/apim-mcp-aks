@@ -359,11 +359,12 @@ async with ClientSession(
 **Minimal Example:**
 ```python
 # Databricks Notebook connecting to Azure MCP
+# NOTE: This example uses Databricks-specific modules (dbutils) available only in Databricks environments
 %pip install mcp-client msal
 
 from mcp import ClientSession
 from msal import ConfidentialClientApplication
-import dbutils
+# dbutils is automatically available in Databricks notebooks and jobs
 
 # Retrieve credentials from Databricks secrets
 client_id = dbutils.secrets.get(scope="azure-creds", key="client-id")
@@ -720,8 +721,12 @@ from botocore.awsrequest import AWSRequest
 import requests
 
 # Retrieve Azure credentials from environment variables
-# NOTE: Environment variables are populated by ECS task definition from AWS Secrets Manager
-# See AWS documentation on ECS secrets management: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/specifying-sensitive-data-secrets.html
+# NOTE: This is a simplified example. In production, environment variables should be
+# populated by ECS task definition from AWS Secrets Manager using the 'secrets' field.
+# See AWS documentation: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/specifying-sensitive-data-secrets.html
+# 
+# For a complete example of retrieving secrets directly from Secrets Manager at runtime,
+# see the AWS Lambda example (lines 306-327) which demonstrates the proper SDK pattern.
 import requests
 
 # Obtain Azure token via federated credentials
@@ -766,17 +771,46 @@ async with ClientSession(
 ```python
 import os
 import json
+import boto3
+import requests
 from mcp import ClientSession
 
-# Cache token across Lambda invocations
+# Cache token and expiration across Lambda invocations
 _cached_token = None
+_token_expiry = 0
+
+def is_token_expired(expiry_time):
+    """Check if token is expired with 5 minute buffer"""
+    import time
+    return time.time() >= expiry_time - 300
+
+def get_azure_token():
+    """Retrieve Azure OAuth token using client credentials"""
+    # Get credentials from Secrets Manager
+    secrets = boto3.client('secretsmanager')
+    secret_value = secrets.get_secret_value(SecretId='azure-agent-credentials')
+    credentials = json.loads(secret_value['SecretString'])
+    
+    # Obtain token
+    token_url = f"https://login.microsoftonline.com/{credentials['tenant_id']}/oauth2/v2.0/token"
+    token_data = {
+        'client_id': credentials['client_id'],
+        'client_secret': credentials['client_secret'],
+        'scope': f"api://{credentials['apim_app_id']}/.default",
+        'grant_type': 'client_credentials'
+    }
+    response = requests.post(token_url, data=token_data)
+    token_info = response.json()
+    return token_info['access_token'], token_info['expires_in']
 
 async def lambda_handler(event, context):
-    global _cached_token
+    global _cached_token, _token_expiry
     
     # Reuse token if valid
-    if _cached_token is None or is_token_expired(_cached_token):
-        _cached_token = await get_azure_token()
+    if _cached_token is None or is_token_expired(_token_expiry):
+        _cached_token, expires_in = get_azure_token()
+        import time
+        _token_expiry = time.time() + expires_in
     
     # Connect to Azure MCP
     async with ClientSession(
@@ -845,9 +879,11 @@ Azure Cosmos DB / AI Search / Fabric IQ
 # Databricks Job script
 from mcp import ClientSession
 from msal import ConfidentialClientApplication
+import asyncio
 import time
 
 def get_azure_token():
+    """Obtain Azure OAuth token from Entra ID"""
     app = ConfidentialClientApplication(
         client_id=dbutils.secrets.get("azure-creds", "client-id"),
         authority=f"https://login.microsoftonline.com/{dbutils.secrets.get('azure-creds', 'tenant-id')}",
@@ -856,7 +892,13 @@ def get_azure_token():
     result = app.acquire_token_for_client(scopes=["api://azure-mcp/.default"])
     return result['access_token'], result['expires_in']
 
-def run_agent_job():
+def process_result(result):
+    """Process MCP tool result - implement your business logic here"""
+    print(f"Processing result: {result}")
+    # Add your processing logic here
+
+async def run_agent_job():
+    """Long-running agent job with token refresh"""
     # Long-running job loop with token refresh
     while True:
         # Get fresh token
@@ -871,19 +913,20 @@ def run_agent_job():
             
             # Use session until token needs refresh
             while time.time() < token_expiry - 300:  # 5 min buffer
-                # Invoke MCP tool
-                result = await session.call_tool("analyze_data", {...})
+                # Invoke MCP tool (replace {...} with actual parameters)
+                result = await session.call_tool("analyze_data", {"param": "value"})
                 
                 # Process result
                 process_result(result)
                 
                 # Wait before next iteration
-                time.sleep(60)
+                await asyncio.sleep(60)
             
             # Token is about to expire, loop will exit and recreate session
             # with new token on next outer loop iteration
 
-run_agent_job()
+# Run the agent job
+asyncio.run(run_agent_job())
 ```
 
 ---

@@ -1055,10 +1055,11 @@ output GRAFANA_RESOURCE_ID string = grafanaEnabled ? grafana!.outputs.id : ''
 // Microsoft Defender for Cloud outputs
 // =========================================
 output DEFENDER_ENABLED bool = defenderEnabled
-output DEFENDER_FOR_CONTAINERS_ENABLED bool = defenderEnabled && !empty(defenderSecurityContactEmail) ? defender!.outputs.defenderForContainersEnabled : false
-output DEFENDER_FOR_KEY_VAULT_ENABLED bool = defenderEnabled && !empty(defenderSecurityContactEmail) ? defender!.outputs.defenderForKeyVaultEnabled : false
-output DEFENDER_FOR_COSMOS_DB_ENABLED bool = defenderEnabled && !empty(defenderSecurityContactEmail) ? defender!.outputs.defenderForCosmosDBEnabled : false
-output DEFENDER_FOR_APIS_ENABLED bool = defenderEnabled && !empty(defenderSecurityContactEmail) ? defender!.outputs.defenderForAPIsEnabled : false
-output DEFENDER_FOR_RESOURCE_MANAGER_ENABLED bool = defenderEnabled && !empty(defenderSecurityContactEmail) ? defender!.outputs.defenderForResourceManagerEnabled : false
+output DEFENDER_DEPLOYED bool = defenderEnabled && !empty(defenderSecurityContactEmail)
+output DEFENDER_FOR_CONTAINERS_ENABLED bool = defenderForContainersEnabled
+output DEFENDER_FOR_KEY_VAULT_ENABLED bool = defenderForKeyVaultEnabled
+output DEFENDER_FOR_COSMOS_DB_ENABLED bool = defenderForCosmosDBEnabled
+output DEFENDER_FOR_APIS_ENABLED bool = defenderForAPIsEnabled
+output DEFENDER_FOR_RESOURCE_MANAGER_ENABLED bool = defenderForResourceManagerEnabled
 
 

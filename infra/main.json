@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.40.2.10011",
-      "templateHash": "12917791135423082205"
+      "templateHash": "7525034922911524089"
     }
   },
   "parameters": {
@@ -8558,7 +8558,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.40.2.10011",
-              "templateHash": "16546419597969339712"
+              "templateHash": "10043787054104404487"
             }
           },
           "parameters": {
@@ -8630,15 +8630,15 @@
                 "extensions": [
                   {
                     "name": "ContainerRegistriesVulnerabilityAssessments",
-                    "isEnabled": "True"
+                    "isEnabled": true
                   },
                   {
                     "name": "AgentlessDiscoveryForKubernetes",
-                    "isEnabled": "True"
+                    "isEnabled": true
                   },
                   {
                     "name": "AgentlessVmScanning",
-                    "isEnabled": "True"
+                    "isEnabled": true
                   }
                 ]
               }
@@ -8942,25 +8942,29 @@
       "type": "bool",
       "value": "[parameters('defenderEnabled')]"
     },
+    "DEFENDER_DEPLOYED": {
+      "type": "bool",
+      "value": "[and(parameters('defenderEnabled'), not(empty(parameters('defenderSecurityContactEmail'))))]"
+    },
     "DEFENDER_FOR_CONTAINERS_ENABLED": {
       "type": "bool",
-      "value": "[if(and(parameters('defenderEnabled'), not(empty(parameters('defenderSecurityContactEmail')))), reference(subscriptionResourceId('Microsoft.Resources/deployments', 'defender'), '2025-04-01').outputs.defenderForContainersEnabled.value, false())]"
+      "value": "[parameters('defenderForContainersEnabled')]"
     },
     "DEFENDER_FOR_KEY_VAULT_ENABLED": {
       "type": "bool",
-      "value": "[if(and(parameters('defenderEnabled'), not(empty(parameters('defenderSecurityContactEmail')))), reference(subscriptionResourceId('Microsoft.Resources/deployments', 'defender'), '2025-04-01').outputs.defenderForKeyVaultEnabled.value, false())]"
+      "value": "[parameters('defenderForKeyVaultEnabled')]"
     },
     "DEFENDER_FOR_COSMOS_DB_ENABLED": {
       "type": "bool",
-      "value": "[if(and(parameters('defenderEnabled'), not(empty(parameters('defenderSecurityContactEmail')))), reference(subscriptionResourceId('Microsoft.Resources/deployments', 'defender'), '2025-04-01').outputs.defenderForCosmosDBEnabled.value, false())]"
+      "value": "[parameters('defenderForCosmosDBEnabled')]"
     },
     "DEFENDER_FOR_APIS_ENABLED": {
       "type": "bool",
-      "value": "[if(and(parameters('defenderEnabled'), not(empty(parameters('defenderSecurityContactEmail')))), reference(subscriptionResourceId('Microsoft.Resources/deployments', 'defender'), '2025-04-01').outputs.defenderForAPIsEnabled.value, false())]"
+      "value": "[parameters('defenderForAPIsEnabled')]"
     },
     "DEFENDER_FOR_RESOURCE_MANAGER_ENABLED": {
       "type": "bool",
-      "value": "[if(and(parameters('defenderEnabled'), not(empty(parameters('defenderSecurityContactEmail')))), reference(subscriptionResourceId('Microsoft.Resources/deployments', 'defender'), '2025-04-01').outputs.defenderForResourceManagerEnabled.value, false())]"
+      "value": "[parameters('defenderForResourceManagerEnabled')]"
     }
   }
 }

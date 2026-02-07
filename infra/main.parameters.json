@@ -46,6 +46,9 @@
     },
     "defenderSecurityContactPhone": {
       "value": "${DEFENDER_SECURITY_CONTACT_PHONE=}"
+    },
+    "purviewEnabled": {
+      "value": "${PURVIEW_ENABLED=false}"
     }
   }
 }

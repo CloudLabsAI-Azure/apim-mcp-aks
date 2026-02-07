@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.40.2.10011",
-      "templateHash": "1574035153602012497"
+      "templateHash": "13834282070223999868"
     }
   },
   "parameters": {
@@ -6698,7 +6698,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.40.2.10011",
-              "templateHash": "15065760876321188696"
+              "templateHash": "9657824003683952405"
             }
           },
           "parameters": {
@@ -6745,7 +6745,7 @@
               "type": "bool",
               "defaultValue": false,
               "metadata": {
-                "description": "Enable Fabric Data Agents (default: true when Fabric is enabled)"
+                "description": "Enable Fabric Data Agents (default: false)"
               }
             },
             "deploymentSuffix": {

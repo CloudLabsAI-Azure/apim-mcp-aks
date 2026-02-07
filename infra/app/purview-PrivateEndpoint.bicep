@@ -33,9 +33,6 @@ resource purviewPrivateDnsZones 'Microsoft.Network/privateDnsZones@2020-06-01' =
   location: 'global'
   tags: tags
   properties: {}
-  dependsOn: [
-    vnet
-  ]
 }]
 
 // Virtual Network Links for each DNS Zone

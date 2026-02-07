@@ -186,8 +186,8 @@ async def test_fabric_query_lakehouse(client: MCPClient, lakehouse_id: str):
         print("⚠️  Skipping: No lakehouse_id configured")
         return
     
-    # Example Spark SQL query
-    query = "SELECT * FROM customers LIMIT 10"
+    # Example Spark SQL query with explicit columns
+    query = "SELECT customer_id, name, email, churn_risk, segment FROM customers LIMIT 10"
     
     result = await client.call_tool("fabric_query_lakehouse", {
         "lakehouse_id": lakehouse_id,
@@ -217,8 +217,8 @@ async def test_fabric_query_warehouse(client: MCPClient, warehouse_id: str):
         print("⚠️  Skipping: No warehouse_id configured")
         return
     
-    # Example T-SQL query
-    query = "SELECT TOP 10 * FROM sales ORDER BY revenue DESC"
+    # Example T-SQL query with explicit columns
+    query = "SELECT TOP 10 sale_id, region, revenue, customer_id FROM sales ORDER BY revenue DESC"
     
     result = await client.call_tool("fabric_query_warehouse", {
         "warehouse_id": warehouse_id,

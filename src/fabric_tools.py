@@ -84,9 +84,10 @@ class FabricAPIClient:
         
         token = self.credential.get_token(FABRIC_RESOURCE_SCOPE)
         self._token_cache = token.token
-        # Tokens typically expire in 1 hour, refresh 5 minutes early
+        # token.expires_on is an absolute timestamp (seconds since epoch)
+        # Refresh 5 minutes before expiry
         from datetime import datetime, timedelta
-        self._token_expiry = datetime.now() + timedelta(seconds=token.expires_on) - timedelta(minutes=5)
+        self._token_expiry = datetime.fromtimestamp(token.expires_on) - timedelta(minutes=5)
         return token.token
     
     def _make_request(

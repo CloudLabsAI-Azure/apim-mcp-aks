@@ -298,7 +298,7 @@ module containerRegistry './core/acr/container-registry.bicep' = {
     containerRegistryName: '${abbrs.containerRegistryRegistries}${resourceToken}'
     location: location
     tags: tags
-    sku: 'Standard'
+    sku: vnetEnabled ? 'Premium' : 'Standard' // Premium required when disabling public network access
     publicNetworkAccess: vnetEnabled ? 'Disabled' : 'Enabled'
   }
 }

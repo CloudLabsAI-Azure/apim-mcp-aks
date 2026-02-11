@@ -183,7 +183,11 @@ All tests passed! Environment is ready.
 | AKS connection failed | Run: `az aks get-credentials --resource-group <rg> --name <cluster>` |
 | Namespace not found | Deploy base infrastructure: `azd provision` |
 | Pods not running | Check logs: `kubectl logs -n mcp-agents -l app=mcp-server` |
+| Pod not starting | Check logs: `kubectl logs -n mcp-agents -l app=my-agent` |
 | Health endpoint failing | Verify service: `kubectl get svc -n mcp-agents` |
+| Health check failing | Ensure `/health` endpoint returns 200 |
+| Image pull errors | Verify ACR login: `az acr login --name <registry>` |
+| Workload identity issues | Verify service account annotations |
 
 ---
 

@@ -402,25 +402,37 @@ You have completed the evaluation framework exercise:
 
 ---
 
-## Lab Complete
+## Congratulations!
 
-Congratulations! You have completed all 5 exercises:
+You've completed the **Build Your Own Agent** lab! Through 5 exercises, you've learned to:
 
-1. ✅ **Lab Review** - Environment validated and ready
-2. ✅ **Build Agents** - Autonomous and approval agents deployed
-3. ✅ **Review End-to-End** - Governance and observability inspected
-4. ✅ **Fine-Tune Agent** - Model improved with Agent Lightning
-5. ✅ **Evaluations** - Agent quality measured and validated
+1. ✅ **Reviewed** the lab objectives, solution architecture, and exercise structure
+2. ✅ **Built** both autonomous and human-in-the-loop agents using GitHub Copilot with SpecKit
+3. ✅ **Reviewed** governance, memory, observability, and security end-to-end
+4. ✅ **Fine-tuned** your agent using Agent Lightning with reinforcement learning
+5. ✅ **Evaluated** your agent using the Azure AI Evaluation SDK
+
+Your agents now benefit from:
+- **Enterprise governance** through APIM policies
+- **Persistent memory** with Cosmos DB
+- **Intelligent search** via AI Foundry and AI Search integration
+- **Human oversight** through Agent 365 approvals
+- **Continuous improvement** via Agent Lightning fine-tuning
+- **Quality assurance** through comprehensive evaluations
+- **Full observability** with Azure Monitor integration
 
 ---
 
 ## Next Steps
 
+- Explore the [Optional Exercises](../LAB_MANUAL_BUILD_YOUR_OWN_AGENT.md#optional-exercises) for advanced topics
+- Review [AGENTS_ARCHITECTURE.md](../AGENTS_ARCHITECTURE.md) for deeper architectural understanding
+- Check [AGENTS_EVALUATIONS.md](../AGENTS_EVALUATIONS.md) for advanced evaluation techniques
+- See [AGENTS_IDENTITY_DESIGN.md](../AGENTS_IDENTITY_DESIGN.md) for security deep-dive
 - Add more test cases to evaluation dataset
 - Implement custom evaluators for domain-specific metrics
 - Set up alerting for evaluation score regression
 - Integrate evaluations with fine-tuning feedback loop
-- Explore Advanced Extensions (see Optional Extensions section)
 
 ---
 

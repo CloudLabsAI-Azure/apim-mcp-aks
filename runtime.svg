@@ -72,11 +72,19 @@
   <rect width="1200" height="600" fill="#1a1a1a"/>
   
   <!-- ============ CALLERS BOX (Left) ============ -->
-  <rect x="20" y="25" width="204" height="210" fill="#1a1a1a" stroke="#666" stroke-width="1" class="box"/>
+  <rect x="20" y="25" width="204" height="255" fill="#1a1a1a" stroke="#666" stroke-width="1" class="box"/>
   <text x="122" y="55" class="title" text-anchor="middle">Callers</text>
   
-  <!-- Other APIs (MCP clients) -->
+  <!-- M365 Copilot -->
   <g transform="translate(35, 75)">
+    <rect x="0" y="0" width="28" height="28" fill="#6264A7" rx="3"/>
+    <text x="14" y="13" font-family="Segoe UI" font-size="8" font-weight="bold" fill="#fff" text-anchor="middle">M365</text>
+    <text x="14" y="24" font-family="Segoe UI" font-size="8" font-weight="bold" fill="#fff" text-anchor="middle">CP</text>
+    <text x="42" y="20" class="sublabel">M365 Copilot</text>
+  </g>
+  
+  <!-- Other APIs (MCP clients) -->
+  <g transform="translate(35, 120)">
     <g class="logo-glow">
       <circle cx="14" cy="14" r="14" fill="url(#mcpGrad)"/>
     </g>
@@ -84,7 +92,7 @@
   </g>
   
   <!-- MCP Inspector -->
-  <g transform="translate(35, 120)">
+  <g transform="translate(35, 170)">
     <rect x="0" y="0" width="28" height="28" fill="#1a1a1a" stroke="url(#mcpGrad)" stroke-width="2" rx="3"/>
     <circle cx="6" cy="10" r="2" fill="#ff5f56"/>
     <circle cx="6" cy="14" r="2" fill="#ffbd2e"/>
@@ -95,7 +103,7 @@
   </g>
   
   <!-- VS Code -->
-  <g transform="translate(35, 170)">
+  <g transform="translate(35, 215)">
     <rect x="0" y="0" width="28" height="28" fill="#007acc" rx="3"/>
     <text x="14" y="19" font-family="Segoe UI" font-size="13" font-weight="bold" fill="#fff" text-anchor="middle">VS</text>
     <text x="42" y="20" class="sublabel">VS Code</text>

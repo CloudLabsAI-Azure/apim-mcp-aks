@@ -1,10 +1,10 @@
-# Exercise 3: Review Agents End-to-End
+# Exercise 3: Review Agents Control Plane
 
 **Duration:** 30 minutes
 
 ## Overview
 
-In this exercise, you will inspect the complete Azure Agents Control Plane to understand how governance, memory, observability, identity, and human oversight work together. You will also identify any problems with your deployed agents.
+In this exercise, you are to inspect the complete Azure Agents Control Plane to understand how identity, security, governance, memory, and observability of your new agent works and works work together. You will be asked answer some questions about the implementation.
 
 ---
 
@@ -18,51 +18,26 @@ Azure API Management enforces governance policies for all agent traffic.
 2. Navigate to **API Management** → Your APIM instance
 3. Go to **APIs** → **MCP API** → **Design** → **Inbound processing**
 
-### Review Policies
+### Ask Azure Copilot to answer some questions
 
-Inspect the inbound policies:
+Ask Azure Copilot:
 
-```xml
-<policies>
-    <inbound>
-        <!-- OAuth validation -->
-        <validate-jwt header-name="Authorization" failed-validation-httpcode="401">
-            <openid-config url="https://login.microsoftonline.com/{tenant-id}/v2.0/.well-known/openid-configuration" />
-            <audiences>
-                <audience>{client-id}</audience>
-            </audiences>
-        </validate-jwt>
-        
-        <!-- Rate limiting -->
-        <rate-limit-by-key calls="100" renewal-period="60" 
-                          counter-key="@(context.Request.Headers.GetValueOrDefault('Authorization',''))" />
-        
-        <!-- Quota enforcement -->
-        <quota-by-key calls="10000" renewal-period="86400" 
-                     counter-key="@(context.Request.Headers.GetValueOrDefault('Authorization',''))" />
-        
-        <!-- Correlation ID for tracing -->
-        <set-header name="X-Correlation-ID" exists-action="skip">
-            <value>@(Guid.NewGuid().ToString())</value>
-        </set-header>
-    </inbound>
-</policies>
-```
+![Azure Copilot APIM](azure-copilot-apim.png)
 
-### Questions to Answer
 
-| Question | Your Answer |
+| Question | Copilot/Your Answer |
 |----------|-------------|
-| What happens if an unauthenticated request is made? | |
-| What is the rate limit per minute? | |
-| What is the daily quota? | |
-| How are requests traced across services? | |
+| What does this APIM say? | |
+| What happens if an unauthenticated request is made to an endpoint in this APIM? | |
+| What is the rate limit per minute for the APIs in this APIM? | |
+| What is the daily quota for this APIM? | |
+| How are requests traced across services and through this APIM? | |
 
 ---
 
 ## Step 3.2: Check Cosmos DB (Short-Term Memory)
 
-Cosmos DB stores session context and agent episodes.
+Cosmos DB stores chat, plans, tasks, session context and agent episodes.
 
 ### Navigate to Cosmos DB
 
@@ -287,127 +262,7 @@ kubectl get serviceaccount autonomous-agent-sa -n mcp-agents -o yaml
 
 ---
 
-## Step 3.8: Check Agent 365 (Human-in-the-Loop Approvals)
-
-Agent 365 enables human oversight for critical agent decisions through approval workflows.
-
-### Architecture Overview
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                          Your Agent                                   │
-│                 Identifies high-value decision                        │
-└─────────────────────────────┬────────────────────────────────────────┘
-                              │
-                              ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│                    Agent 365 Approval Flow                            │
-│           Logic App → Teams Adaptive Card → Human Response            │
-└─────────────────────────────┬────────────────────────────────────────┘
-                              │
-                              ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│                Approval Decision Recorded                             │
-│                     Cosmos DB Audit Log                               │
-└──────────────────────────────────────────────────────────────────────┘
-```
-
-### Review Approval Workflow Definition
-
-```powershell
-# Review the Logic App workflow definition
-code agent365/workflows/agent_approval_logic_app.json
-
-# Review Teams adaptive card templates
-code agent365/teams/agent_approval_card.json
-code agent365/teams/agent_approval_result_card.json
-```
-
-### Verify Logic App Execution
-
-1. Open Azure Portal
-2. Navigate to **Logic Apps** → **agent-approval-workflow**
-3. Go to **Run history**
-4. Review successful and failed runs
-
-**For each run, verify:**
-- Trigger received the approval request payload
-- Teams adaptive card was posted successfully
-- Approval response was received
-- Callback to agent completed
-
-### Check Teams Channel
-
-1. Navigate to Microsoft Teams
-2. Find the Agents Approval channel
-3. Review recent approval cards:
-   - Agent ID and action requested
-   - Risk level classification
-   - Context summary
-   - Approve/Reject buttons
-
-**Verify adaptive card contains:**
-- Clear description of the action
-- Risk level (high/medium/low)
-- Sufficient context for decision-making
-- Response buttons functioning
-
-### Review Approval History in Cosmos DB
-
-1. Navigate to Cosmos DB → **approvals** container
-2. Query recent approvals:
-
-```sql
-SELECT * FROM c 
-WHERE c.agent_id = 'approval-agent' 
-ORDER BY c.timestamp DESC 
-OFFSET 0 LIMIT 10
-```
-
-**Verify approval document structure:**
-
-```json
-{
-  "id": "approval-request-id",
-  "agent_id": "approval-agent",
-  "action": "deploy_production",
-  "approved": true,
-  "approver": "user@contoso.com",
-  "context": { "environment": "production", "version": "v2.0.0" },
-  "timestamp": "2026-02-07T10:30:00Z"
-}
-```
-
-### Generate Compliance Report
-
-Query approval metrics in Application Insights:
-
-```kusto
-// Approval request metrics
-customEvents
-| where name == "ApprovalRequest"
-| where timestamp > ago(7d)
-| summarize 
-    TotalRequests = count(),
-    Approved = countif(customDimensions["approved"] == "true"),
-    Rejected = countif(customDimensions["approved"] == "false"),
-    AvgResponseTime = avg(todouble(customDimensions["response_time_seconds"]))
-| extend ApprovalRate = round(Approved * 100.0 / TotalRequests, 2)
-```
-
-### Approval Best Practices
-
-| Practice | Description |
-|----------|-------------|
-| **Set appropriate timeouts** | Don't block indefinitely; define escalation paths |
-| **Provide rich context** | Include enough info for informed decisions |
-| **Log everything** | Record all requests and decisions for audit |
-| **Handle rejection gracefully** | Provide clear feedback when actions are rejected |
-| **Define escalation paths** | What happens when approval times out? |
-
----
-
-## Step 3.9: Identify Problems
+## Step 3.8: Identify Problems
 
 Based on your review, identify any issues with your agents:
 
@@ -422,7 +277,6 @@ Based on your review, identify any issues with your agents:
 | Log Analytics | ✅ / ❌ | | |
 | App Insights Traces | ✅ / ❌ | | |
 | Entra ID RBAC | ✅ / ❌ | | |
-| Agent 365 Approvals | ✅ / ❌ | | |
 
 ### Common Problems
 
@@ -432,7 +286,7 @@ Based on your review, identify any issues with your agents:
 | Failed tool calls | Error rate > 5% | Review logs for exceptions |
 | Missing traces | No transactions in App Insights | Verify OpenTelemetry configuration |
 | RBAC errors | 403 responses | Add missing role assignments |
-| Approval timeouts | Approvals not completing | Check Logic App run history |
+
 
 ### Document Findings
 
@@ -459,7 +313,6 @@ Suspected Cause: ____________________________________
 - [ ] Queried Log Analytics for agent logs
 - [ ] Viewed distributed traces in App Insights
 - [ ] Verified RBAC role assignments
-- [ ] Checked Agent 365 approval history
 - [ ] Documented any problems found
 
 ---

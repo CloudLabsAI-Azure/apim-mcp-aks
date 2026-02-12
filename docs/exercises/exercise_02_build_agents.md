@@ -127,4 +127,4 @@ The agent implements MC protocol and is integrated with the Azure Agents Control
 ---
 
 
-**Next:** [Exercise 3: Review Agents End-to-End](exercise_03_review_end_to_end.md)
+**Next:** [Exercise 3: Review Agents Control Plane](exercise_03_review_agents_control_plane.md)

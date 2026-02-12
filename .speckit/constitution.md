@@ -239,7 +239,7 @@ infra/
 
 This constitution supports the Azure Agents Control Plane Lab with the following exercises:
 
-1. **Lab Review** (30 min): Environment validation and architecture walkthrough
+1. **Lab Intro.** (30 min): Environment validation and architecture walkthrough
 2. **Build Agents** (1 hr): Specification-driven agent development with Copilot
 3. **End-to-End Review** (30 min): Governance verification across all pillars
 4. **Fine-Tuning** (1 hr): Agent Lightning workflow for behavior optimization

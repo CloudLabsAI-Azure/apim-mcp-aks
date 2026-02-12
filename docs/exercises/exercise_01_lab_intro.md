@@ -1,4 +1,4 @@
-# Exercise 1: Lab Review
+# Exercise 1: Lab Intro
 
 **Duration:** 30 minutes
 

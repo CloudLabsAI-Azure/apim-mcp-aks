@@ -129,6 +129,115 @@ Invoke-RestMethod -Uri "http://localhost:8081/message" -Method Post -Body $body 
 
 ---
 
+## Step 8: Review Agent 365 Approvals
+
+Agent 365 enables human oversight for critical agent decisions through approval workflows.
+
+### Architecture Overview
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                          Your Agent                                   │
+│                 Identifies high-value decision                        │
+└─────────────────────────────┬────────────────────────────────────────┘
+                              │
+                              ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                    Agent 365 Approval Flow                            │
+│           Logic App → Teams Adaptive Card → Human Response            │
+└─────────────────────────────┬────────────────────────────────────────┘
+                              │
+                              ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                Approval Decision Recorded                             │
+│                     Cosmos DB Audit Log                               │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+### Verify Logic App Execution
+
+1. Open Azure Portal
+2. Navigate to **Logic Apps** → **agent-approval-workflow**
+3. Go to **Run history**
+4. Review successful and failed runs
+
+**For each run, verify:**
+- Trigger received the approval request payload
+- Teams adaptive card was posted successfully
+- Approval response was received
+- Callback to agent completed
+
+### Check Teams Channel
+
+1. Navigate to Microsoft Teams
+2. Find the Agents Approval channel
+3. Review recent approval cards:
+   - Agent ID and action requested
+   - Risk level classification
+   - Context summary
+   - Approve/Reject buttons
+
+**Verify adaptive card contains:**
+- Clear description of the action
+- Risk level (high/medium/low)
+- Sufficient context for decision-making
+- Response buttons functioning
+
+### Review Approval History in Cosmos DB
+
+1. Navigate to Cosmos DB → **approvals** container
+2. Query recent approvals:
+
+```sql
+SELECT * FROM c 
+WHERE c.agent_id = 'approval-agent' 
+ORDER BY c.timestamp DESC 
+OFFSET 0 LIMIT 10
+```
+
+**Verify approval document structure:**
+
+```json
+{
+  "id": "approval-request-id",
+  "agent_id": "approval-agent",
+  "action": "deploy_production",
+  "approved": true,
+  "approver": "user@contoso.com",
+  "context": { "environment": "production", "version": "v2.0.0" },
+  "timestamp": "2026-02-07T10:30:00Z"
+}
+```
+
+### Generate Compliance Report
+
+Query approval metrics in Application Insights:
+
+```kusto
+// Approval request metrics
+customEvents
+| where name == "ApprovalRequest"
+| where timestamp > ago(7d)
+| summarize 
+    TotalRequests = count(),
+    Approved = countif(customDimensions["approved"] == "true"),
+    Rejected = countif(customDimensions["approved"] == "false"),
+    AvgResponseTime = avg(todouble(customDimensions["response_time_seconds"]))
+| extend ApprovalRate = round(Approved * 100.0 / TotalRequests, 2)
+```
+
+### Approval Best Practices
+
+| Practice | Description |
+|----------|-------------|
+| **Set appropriate timeouts** | Don't block indefinitely; define escalation paths |
+| **Provide rich context** | Include enough info for informed decisions |
+| **Log everything** | Record all requests and decisions for audit |
+| **Handle rejection gracefully** | Provide clear feedback when actions are rejected |
+| **Define escalation paths** | What happens when approval times out? |
+
+---
+
 ## Verification Checklist
 
 - [ ] Specification created with Semi-Autonomous governance
@@ -138,6 +247,9 @@ Invoke-RestMethod -Uri "http://localhost:8081/message" -Method Post -Body $body 
 - [ ] Unit tests passing
 - [ ] Agent deployed to AKS and running
 - [ ] Approval flow working end-to-end
+- [ ] Logic App execution verified
+- [ ] Teams adaptive cards functioning
+- [ ] Approval history recorded in Cosmos DB
 
 ---
 

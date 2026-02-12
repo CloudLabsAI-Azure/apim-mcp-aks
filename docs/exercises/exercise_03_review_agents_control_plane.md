@@ -37,7 +37,7 @@ Ask Azure Copilot:
 
 ## Step 3.2: Check Cosmos DB (Short-Term Memory)
 
-Cosmos DB stores chat, plans, tasks, session context and agent episodes.
+Cosmos DB stores plans, tasks, and agent episodes.
 
 ### Navigate to Cosmos DB
 
@@ -45,31 +45,31 @@ Cosmos DB stores chat, plans, tasks, session context and agent episodes.
 2. Navigate to **Azure Cosmos DB** → Your account
 3. Go to **Data Explorer**
 
-### Query Agent Sessions
+### View Plans and Tasks
 
-```sql
-SELECT * FROM c 
-WHERE c.agent_id = 'autonomous-agent' 
-ORDER BY c._ts DESC 
-OFFSET 0 LIMIT 10
-```
+Click on plans and then Items.
 
-### Query Reinforcement Learning Episodes
+Review tasks, intent and steps.
 
-```sql
-SELECT * FROM c 
-WHERE c.type = 'episode' 
-ORDER BY c._ts DESC 
-OFFSET 0 LIMIT 10
-```
+Click on tasks and then Items.
 
-### Review Data Structure
+Review embeddings.
 
-| Container | Purpose | Key Fields |
-|-----------|---------|------------|
-| sessions | Session context | agent_id, user_id, context, timestamp |
-| rl_episodes | Training episodes | agent_id, state, action, reward, next_state |
-| approvals | Approval decisions | agent_id, action, approved, approver |
+### View Plans and Tasks
+
+Click on plans and then Items.
+
+Review tasks, intent and steps.
+
+Click on tasks and then Items.
+
+Review embeddings.
+
+### View Reinforcement Learning Episodes
+
+Click on rl_episodes and then Items.
+
+Review episodes.
 
 ---
 

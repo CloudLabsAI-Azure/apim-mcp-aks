@@ -4,7 +4,7 @@
 
 ## Overview
 
-In this exercise, you will use Agent Lightning to identify sub-optimal agent behavior captured in Exercise 3, fine-tune the model to correct it, deploy the fine-tuned model, and retest to validate improvements.
+In this exercise, you will use Agent Lightning to identify sub-optimal agent behavior, fine-tune the model to correct it, deploy the fine-tuned model, and retest to validate improvements.
 
 ---
 
@@ -14,13 +14,13 @@ Agent Lightning implements a reinforcement learning feedback loop:
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Capture   │ ──▶ │    Label    │ ──▶ │    Build    │
+│   Capture   │ ──▶│    Label    │ ──▶ │    Build    │
 │  Episodes   │     │   Rewards   │     │   Dataset   │
 └─────────────┘     └─────────────┘     └─────────────┘
                                                │
                                                ▼
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Deploy    │ ◀── │    Train    │ ◀── │   Upload    │
+│   Deploy    │ ◀── │    Train   │ ◀── │   Upload    │
 │   Model     │     │  Fine-Tune  │     │  to Azure   │
 └─────────────┘     └─────────────┘     └─────────────┘
 ```

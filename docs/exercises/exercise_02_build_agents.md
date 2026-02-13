@@ -87,7 +87,7 @@ For reference, review the existing `src/next_best_action_agent.py`, `src/next_be
 
 To create the agent,
 **Prompt Copilot with:**
-> "Implement an MCP-compliant FastAPI agent based on the <autonomous_agent.spec.md> specification. Utilize `src/next_best_action_agent.py` as a reference implementation. Build the implementation similar to the reference implementation but in its own new file `src/autonomous_agent.py. Be sure to include health endpoint, SSE endpoint, and message endpoint with tools/list and tools/call handlers. Also create pytest unit tests in `tests/test_autonomous_agent_unit.py` covering the health endpoint, MCP initialize, tools/list, and tools/call methods. Create functional tests in `tests/test_autonomous_agent_functional.py` covering the health endpoint, MCP initialize, tools/list, and tools/call methods. Make a new DockerFile specific to this new agent."
+> "Implement an MCP-compliant FastAPI agent based on the <autonomous_agent.spec.md> specification. Utilize `src/next_best_action_agent.py` as a reference implementation. Build the implementation similar to the reference implementation but in its own new file `src/autonomous_agent.py. Be sure to include health endpoint, SSE endpoint, and message endpoint with tools/list and tools/call handlers. Also create pytest unit tests in `tests/test_autonomous_agent_unit.py` covering the health endpoint, MCP initialize, tools/list, and tools/call methods. Create functional tests in `tests/test_autonomous_agent_functional.py` covering the health endpoint, MCP initialize, tools/list, and tools/call methods. Make a new DockerFile specific to this new agent. Make a new k8s/autonomous-agent-deployment.yaml config file too."
 
 ### Step B.3: Run Unit Tests with Copilot
 

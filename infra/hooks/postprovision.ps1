@@ -162,6 +162,41 @@ if (-not $lbReady) {
   Write-Host "⚠️  LoadBalancer IP assignment timed out" -ForegroundColor Yellow
 }
 
+# Provision AI Search index & ingest task instructions
+Write-Host "`n📚 Provisioning AI Search index & ingesting task instructions..." -ForegroundColor Cyan
+try {
+  # Ensure current user can create indexes (useful if running script locally)
+  $searchServiceName = $envValues.AZURE_SEARCH_SERVICE_NAME.Trim('"')
+  if ($searchServiceName) {
+    $subscriptionId = az account show --query id -o tsv
+    $searchScope = "/subscriptions/$subscriptionId/resourceGroups/$rgName/providers/Microsoft.Search/searchServices/$searchServiceName"
+
+    Write-Host "  🔐 Assigning Search roles to signed-in user..." -ForegroundColor White
+    az role assignment create --assignee $userId --role "Search Service Contributor" --scope $searchScope 2>$null | Out-Null
+    az role assignment create --assignee $userId --role "Search Index Data Contributor" --scope $searchScope 2>$null | Out-Null
+    Write-Host "  ✅ Search roles assigned (or already present)" -ForegroundColor Green
+  }
+
+  # Set environment variables for ingestion script
+  $env:AZURE_SEARCH_ENDPOINT = $azureSearchEndpoint
+  $env:AZURE_SEARCH_INDEX_NAME = $azureSearchIndexName
+  $env:FOUNDRY_PROJECT_ENDPOINT = $foundryProjectEndpoint
+  $env:EMBEDDING_MODEL_DEPLOYMENT_NAME = $embeddingModelDeploymentName
+
+  # Install required Python packages (idempotent)
+  Write-Host "  📦 Ensuring python dependencies..." -ForegroundColor White
+  python -m pip install --disable-pip-version-check --quiet -r ./src/requirements.txt 2>$null
+
+  # Run ingestion script (creates index if missing & uploads task_instructions/*.json)
+  Write-Host "  🚀 Running ingestion script..." -ForegroundColor White
+  python ./scripts/ingest_task_instructions.py
+  Write-Host "  ✅ AI Search index provisioned & task instructions ingested" -ForegroundColor Green
+}
+catch {
+  Write-Host "  ⚠️ AI Search provisioning/ingestion failed: $($_.Exception.Message)" -ForegroundColor Yellow
+  Write-Host "  👉 You can rerun manually: python ./scripts/ingest_task_instructions.py" -ForegroundColor Yellow
+}
+
 # Generate test configuration
 Write-Host "`n📝 Generating test configuration..." -ForegroundColor Cyan
 & "./scripts/generate-test-config.ps1"

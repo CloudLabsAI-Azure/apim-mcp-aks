@@ -263,6 +263,7 @@ def get_model_deployment() -> str:
 # Azure AI Search configuration for long-term memory
 AZURE_SEARCH_ENDPOINT = os.getenv("AZURE_SEARCH_ENDPOINT", "")
 AZURE_SEARCH_INDEX_NAME = os.getenv("AZURE_SEARCH_INDEX_NAME", "task-instructions")
+AZURE_SEARCH_KNOWLEDGE_BASE_NAME = os.getenv("AZURE_SEARCH_KNOWLEDGE_BASE_NAME", "task-instructions-kb")
 
 # Microsoft Fabric IQ configuration for Facts Memory
 FABRIC_ENABLED = os.getenv("FABRIC_ENABLED", "false").lower() == "true"
@@ -661,6 +662,7 @@ def _initialize_long_term_memory():
                 search_endpoint=AZURE_SEARCH_ENDPOINT,
                 foundry_endpoint=FOUNDRY_PROJECT_ENDPOINT,
                 index_name=AZURE_SEARCH_INDEX_NAME,
+                knowledge_base_name=AZURE_SEARCH_KNOWLEDGE_BASE_NAME,
                 mode="agentic",
             )
             # Set embedding function for the long-term memory

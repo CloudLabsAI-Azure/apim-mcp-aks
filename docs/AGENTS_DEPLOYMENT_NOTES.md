@@ -124,6 +124,34 @@ COSMOSDB_DATABASE_NAME: mcpdb
 AZURE_SEARCH_ENDPOINT: https://<search>.search.windows.net
 AZURE_SEARCH_INDEX_NAME: task-instructions
 
+### ✅ Post-provision: AI Search index ingestion & Knowledge Base
+- The `azd` post-provision hook now runs `python ./scripts/ingest_task_instructions.py` automatically. This:
+  - Creates/updates the **AI Search index** (`task-instructions` by default)
+  - Generates embeddings using your configured provider
+  - Uploads all JSON docs under `task_instructions/`
+  - Best-effort provisions an **Azure AI Foundry Knowledge Base** so the portal shows entries under *Agentic retrieval > Knowledge sources / Knowledge bases*
+
+> 🔒 If your Foundry/Azure AI project has **public access disabled**, embedding calls will fail with `403 Public access is disabled`. Fix options:
+> - Run inside the same VNET/private endpoint as the project
+> - Or set `EMBEDDING_PROVIDER=azure_openai` with `AZURE_OPENAI_ENDPOINT` + `AZURE_OPENAI_API_KEY` (keys from your Azure OpenAI resource)
+> - Or set `EMBEDDING_PROVIDER=openai` with `OPENAI_API_KEY` for local/dev
+> - Or set `SKIP_EMBEDDINGS=true` to ingest without vectors (semantic search still works)
+
+- You can rerun manually if needed:
+  ```bash
+  export AZURE_SEARCH_ENDPOINT="https://<search>.search.windows.net"
+  export AZURE_SEARCH_INDEX_NAME="task-instructions"
+  export FOUNDRY_PROJECT_ENDPOINT="<from azd env get-values>"
+  export EMBEDDING_MODEL_DEPLOYMENT_NAME="text-embedding-3-large"  # or your deployment name
+  # optional overrides
+  export EMBEDDING_PROVIDER=azure_openai
+  export AZURE_OPENAI_ENDPOINT="https://<your-aoai>.openai.azure.com"
+  export AZURE_OPENAI_API_KEY="<key>"
+
+  python ./scripts/ingest_task_instructions.py
+  ```
+- If knowledge base creation fails (API changes), create it manually via Azure AI Foundry Portal ➜ **Agentic retrieval** → *Add index* and *Create knowledge base*, pointing to your search index.
+
 # Fabric IQ (disabled by default)
 FABRIC_ENABLED: false
 ONTOLOGY_CONTAINER_NAME: ontologies

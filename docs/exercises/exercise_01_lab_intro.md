@@ -184,9 +184,9 @@ Copilot will activate the virtual environment, navigate to the tests directory, 
 
 ---
 
-## Verification Checklist
+## Completion Checklist
 
-Before proceeding to Exercise 2, confirm:
+Before proceeding to Exercise 2, please confirm the following:
 
 - [ ] Reviewed lab objectives and understand what you will build
 - [ ] Reviewed solution architecture and key Azure services

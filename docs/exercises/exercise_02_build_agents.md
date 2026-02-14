@@ -89,31 +89,66 @@ To create the agent,
 **Prompt Copilot with:**
 > "Implement an MCP-compliant FastAPI agent based on the <autonomous_agent.spec.md> specification. Utilize `src/next_best_action_agent.py` as a reference implementation. Build the implementation similar to the reference implementation but in its own new file `src/autonomous_agent.py. Be sure to include health endpoint, SSE endpoint, and message endpoint with tools/list and tools/call handlers. Also create pytest unit tests in `tests/test_autonomous_agent_unit.py` covering the health endpoint, MCP initialize, tools/list, and tools/call methods. Create functional tests in `tests/test_autonomous_agent_functional.py` covering the health endpoint, MCP initialize, tools/list, and tools/call methods. Make a new DockerFile specific to this new agent. Make a new k8s/autonomous-agent-deployment.yaml config file too."
 
-### Step B.3: Run Unit Tests with Copilot
+### Step B.3: Generate Domain Knowledge Facts with Copilot
+
+Your agent needs domain-specific facts to ground its reasoning. Copilot will generate ontology fact files for your agents domain and upload them.
+
+**Prompt Copilot (Agent Mode) with:**
+> "Review the existing ontology fact files in `facts/ontology/` (customer_churn_ontology.json, cicd_pipeline_ontology.json, user_management_ontology.json) as examples. Generate a new ontology fact file for my agents domain based on its specification. Save it to `facts/ontology/<my_domain>_ontology.json` following the same JSON structure. Then upload all ontology files from `facts/ontology/` to the Azure Storage accounts ontologies container by creating and running `scripts/upload-ontologies-to-storage.ps1`."
+
+### Step B.4: Ingest Domain Knowledge into AI Search with Copilot
+
+Your agent needs task instruction documents indexed in Azure AI Search for long-term memory retrieval. Copilot will create the task instruction files, ingest them with embeddings, and provision the agentic retrieval infrastructure.
+
+**Prompt Copilot (Agent Mode) with:**
+> "Review the existing task instruction documents in `task_instructions/` as examples. Create a new task instruction JSON file for my agents domain based on its specification, following the same structure (id, title, category, intent, description, content with step-by-step instructions, keywords, estimated_effort, steps array, related_tasks). Save it to `task_instructions/<my_domain>.json`. Then activate the .venv and run `python scripts/ingest_task_instructions.py` to create the AI Search index, generate embeddings with text-embedding-3-large, upload the documents, and provision a Knowledge Source and Knowledge Base for agentic retrieval. Verify the index has documents and the Knowledge Source `task-instructions-source` and Knowledge Base `task-instructions-kb` exist on the search service."
+
+### Step B.5: Enable Agentic Retrieval in K8s Deployment with Copilot
+
+Your agents K8s deployment needs the AI Search environment variables to enable agentic retrieval at runtime.
+
+**Prompt Copilot (Agent Mode) with:**
+> "Update my agents K8s deployment YAML (`k8s/autonomous-agent-deployment.yaml` or the configured variant) to add the following environment variables to the container spec: AZURE_SEARCH_ENDPOINT (set to the search service endpoint), AZURE_SEARCH_INDEX_NAME (set to `task-instructions`), and AZURE_SEARCH_KNOWLEDGE_BASE_NAME (set to `task-instructions-kb`). The AZURE_SEARCH_KNOWLEDGE_BASE_NAME is critical — it enables the AzureAISearchContextProvider to run in agentic mode using KnowledgeBaseRetrievalClient for multi-hop reasoning instead of basic hybrid search. Apply the updated deployment to AKS and verify the pods pick up the new environment variables."
+
+After Copilot completes the above steps, your agent will have the following agentic retrieval architecture:
+
+| Component | Purpose |
+|---|---|
+| `src/memory/aisearch_memory.py` | `LongTermMemory` class wrapping `AzureAISearchContextProvider` |
+| `AzureAISearchContextProvider` | Microsoft Agent Framework provider with `mode="agentic"` |
+| Knowledge Base (`task-instructions-kb`) | Server-side LLM-driven query planning, sub-query decomposition, answer synthesis |
+| Knowledge Source (`task-instructions-source`) | Points to the `task-instructions` search index |
+| `AZURE_SEARCH_KNOWLEDGE_BASE_NAME` env var | Tells the agent to use `KnowledgeBaseRetrievalClient.retrieve()` instead of basic `SearchClient.search()` |
+
+### Step B.6: Run Unit Tests with Copilot
 
 **Prompt Copilot (Agent Mode) with:**
 > "Check if a .venv virtual environment exists in the project root. If it doesn't, create one. Activate it, install the dependencies from src/requirements.txt, and run the unit tests in tests/test_autonomous_agent_unit.py with verbose output."
 
-### Step B.4: Deploy Autonomous Agent with Copilot
+### Step B.7: Deploy Autonomous Agent with Copilot
 
 **Prompt Copilot (Agent Mode) with:**
 > "Build the new Docker image for this agent in the src/ directory for my autonomous agent, tag it and push it to the Azure Container Registry using the CONTAINER_REGISTRY environment variable, then deploy it to AKS using k8s/autonomous-agent-deployment.yaml and verify the pods are running in the mcp-agents namespace."
 
-### Step B.5: Run Functional Tests with Copilot
+### Step B.8: Run Functional Tests with Copilot
 
 **Prompt Copilot (Agent Mode) with:**
 > "Set up a kubectl port-forward from the autonomous-agent service in the mcp-agents namespace on port 8080:80. Then check if a .venv virtual environment exists in the project root — if it doesn't, create one. Activate it, install the dependencies from src/requirements.txt, and run the functional tests in tests/test_autonomous_agent_functional.py with verbose output."
 
 ---
 
-## Verification Checklist
+## Completion Checklist
 
-### Autonomous Agent
+Before proceeding to Exercise 3, please confirm the following:
+
 - [ ] Specification created/updated
 - [ ] Agent created with MCP endpoints
+- [ ] Task instructions ingested into AI Search index
+- [ ] Knowledge Source and Knowledge Base provisioned (agentic retrieval)
+- [ ] Ontology facts uploaded to Azure Storage/Fabric IQ
 - [ ] Unit tests passing
 - [ ] Docker image built and pushed to ACR
-- [ ] Agent deployed to AKS and running
+- [ ] Agent deployed to AKS
 - [ ] Functional tests passing
 
 ---

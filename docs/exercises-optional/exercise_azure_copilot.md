@@ -1,3 +1,6 @@
+> [!CAUTION]
+> These exercises have not been tested. There could be incorrect or missing instructions.
+
 # Optional Exercise: Azure Copilot Integration
 
 **Objective:** Connect your MCP-compliant agents to Azure Copilot so users can interact with them through natural language in the Azure portal.

@@ -1,3 +1,6 @@
+> [!CAUTION]
+> These exercises have not been tested. There could be incorrect or missing instructions.
+
 # Optional Exercise: Fabric Data Agents
 
 **Objective:** Build AI agents that interact with Microsoft Fabric's data platform (Lakehouses, Warehouses, Pipelines, Semantic Models).

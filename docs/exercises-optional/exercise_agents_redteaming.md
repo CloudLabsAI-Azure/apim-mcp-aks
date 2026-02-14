@@ -1,3 +1,6 @@
+> [!CAUTION]
+> These exercises have not been tested. There could be incorrect or missing instructions.
+
 # Optional Exercise: Agent Red Teaming with PyRIT
 
 **Objective:** Use Microsoft's Python Risk Identification Tool (PyRIT) to red team your AI agents and identify security vulnerabilities.

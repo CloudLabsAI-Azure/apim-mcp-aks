@@ -146,6 +146,34 @@ if [ "$LB_READY" = "false" ]; then
   echo "⚠️  LoadBalancer IP assignment timed out"
 fi
 
+# Provision AI Search index & ingest task instructions
+echo ""
+echo "📚 Provisioning AI Search index & ingesting task instructions..."
+try_run_ai_search() {
+  if [[ -n "$AZURE_SEARCH_SERVICE_NAME" ]]; then
+    subscription_id=$(az account show --query id -o tsv)
+    search_scope="/subscriptions/${subscription_id}/resourceGroups/${AZURE_RESOURCE_GROUP_NAME}/providers/Microsoft.Search/searchServices/${AZURE_SEARCH_SERVICE_NAME}"
+    echo "  🔐 Assigning Search roles to signed-in user..."
+    az role assignment create --assignee "$(az ad signed-in-user show --query id -o tsv)" --role "Search Service Contributor" --scope "$search_scope" >/dev/null 2>&1 || true
+    az role assignment create --assignee "$(az ad signed-in-user show --query id -o tsv)" --role "Search Index Data Contributor" --scope "$search_scope" >/dev/null 2>&1 || true
+  fi
+
+  export AZURE_SEARCH_ENDPOINT=$(echo $AZURE_SEARCH_ENDPOINT | tr -d '"')
+  export AZURE_SEARCH_INDEX_NAME=$(echo $AZURE_SEARCH_INDEX_NAME | tr -d '"')
+  export FOUNDRY_PROJECT_ENDPOINT=$(echo $FOUNDRY_PROJECT_ENDPOINT | tr -d '"')
+  export EMBEDDING_MODEL_DEPLOYMENT_NAME=$(echo $EMBEDDING_MODEL_DEPLOYMENT_NAME | tr -d '"')
+
+  echo "  📦 Ensuring python dependencies..."
+  python -m pip install --disable-pip-version-check --quiet -r ./src/requirements.txt >/dev/null 2>&1 || true
+
+  echo "  🚀 Running ingestion script..."
+  python ./scripts/ingest_task_instructions.py
+}
+
+if ! try_run_ai_search; then
+  echo "  ⚠️ AI Search provisioning/ingestion failed. Rerun manually: python ./scripts/ingest_task_instructions.py"
+fi
+
 # Generate test configuration
 echo ""
 echo "📝 Generating test configuration..."

@@ -138,6 +138,8 @@ spec:
           value: "${AZURE_SEARCH_ENDPOINT}"
         - name: AZURE_SEARCH_INDEX_NAME
           value: "${AZURE_SEARCH_INDEX_NAME}"
+        - name: AZURE_SEARCH_KNOWLEDGE_BASE_NAME
+          value: "${AZURE_SEARCH_KNOWLEDGE_BASE_NAME}"
         # =========================================
         # Microsoft Fabric IQ Configuration
         # =========================================

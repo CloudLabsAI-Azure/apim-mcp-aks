@@ -1,3 +1,6 @@
+> [!CAUTION]
+> These exercises have not been tested. There could be incorrect or missing instructions.
+
 # Optional Exercise: Build Human-in-the-Loop Agent with Agent 365 Approval
 
 **Duration:** 1 hour

@@ -26,11 +26,13 @@ from azure.search.documents.models import VectorizedQuery
 # The AzureAISearchContextProvider is part of agent_framework.azure module
 try:
     from agent_framework.azure import AzureAISearchContextProvider
+    from agent_framework import ChatMessage, Role
     AISEARCH_CONTEXT_PROVIDER_AVAILABLE = True
 except ImportError:
     try:
         # Fallback: try agent_framework_aisearch if available
         from agent_framework_aisearch import AzureAISearchContextProvider
+        from agent_framework import ChatMessage, Role
         AISEARCH_CONTEXT_PROVIDER_AVAILABLE = True
     except ImportError:
         AISEARCH_CONTEXT_PROVIDER_AVAILABLE = False
@@ -114,13 +116,29 @@ class LongTermMemory(MemoryProvider):
                 if self._async_credential is None:
                     self._async_credential = AsyncDefaultAzureCredential()
                 
+                # Build provider kwargs based on mode
+                provider_kwargs: Dict[str, Any] = {
+                    "endpoint": search_endpoint,
+                    "credential": self._async_credential,
+                    "mode": mode,
+                }
+                
+                if mode == "agentic" and knowledge_base_name:
+                    # Agentic mode with existing Knowledge Base:
+                    # Pass knowledge_base_name WITHOUT index_name (SDK requires one or the other)
+                    provider_kwargs["knowledge_base_name"] = knowledge_base_name
+                    provider_kwargs["retrieval_reasoning_effort"] = retrieval_reasoning_effort
+                    logger.info(f"Configuring AzureAISearchContextProvider in AGENTIC mode with KB: {knowledge_base_name}")
+                else:
+                    # Semantic mode or agentic without KB: use index_name
+                    provider_kwargs["index_name"] = index_name
+                    if mode == "agentic":
+                        logger.warning(f"Agentic mode requested but no knowledge_base_name provided - falling back to semantic mode")
+                        provider_kwargs["mode"] = "semantic"
+                
                 # Initialize AzureAISearchContextProvider for agent framework integration
-                self._context_provider = AzureAISearchContextProvider(
-                    endpoint=search_endpoint,
-                    index_name=index_name,
-                    credential=self._async_credential,
-                )
-                logger.info(f"AzureAISearchContextProvider initialized for index: {index_name}")
+                self._context_provider = AzureAISearchContextProvider(**provider_kwargs)
+                logger.info(f"AzureAISearchContextProvider initialized in {provider_kwargs['mode']} mode")
             except Exception as e:
                 logger.warning(f"Failed to initialize AzureAISearchContextProvider: {e}")
                 self._context_provider = None
@@ -174,14 +192,26 @@ class LongTermMemory(MemoryProvider):
         """
         if self._context_provider is not None:
             try:
-                logger.info(f"[AzureAISearchContextProvider] Calling get_context for query: {query[:100]}...")
-                # Use the context provider's get_context method
-                context = await self._context_provider.get_context(query)
-                if context:
-                    logger.info(f"[AzureAISearchContextProvider] SUCCESS - Retrieved {len(context)} chars of context")
-                else:
-                    logger.info("[AzureAISearchContextProvider] Returned empty context")
-                return context or ""
+                logger.info(f"[AzureAISearchContextProvider] Calling invoking() for query: {query[:100]}...")
+                # Use the context provider's invoking() method with a ChatMessage
+                # invoking() is the ContextProvider abstract method - there is no get_context()
+                user_message = ChatMessage(role="user", text=query)
+                async with self._context_provider as provider:
+                    context_result = await provider.invoking(user_message)
+                
+                # Extract text from Context.messages
+                if context_result and context_result.messages:
+                    context_parts = []
+                    for msg in context_result.messages:
+                        if msg.text:
+                            context_parts.append(msg.text)
+                    context = "\n\n".join(context_parts)
+                    if context:
+                        logger.info(f"[AzureAISearchContextProvider] SUCCESS - Retrieved {len(context)} chars of context")
+                        return context
+                
+                logger.info("[AzureAISearchContextProvider] Returned empty context")
+                return ""
             except Exception as e:
                 logger.error(f"[AzureAISearchContextProvider] ERROR: {e}")
         else:
@@ -219,22 +249,26 @@ class LongTermMemory(MemoryProvider):
             # Use AzureAISearchContextProvider if available for enhanced retrieval
             if self._context_provider is not None and self._mode == "agentic":
                 try:
-                    # Get context from the provider
-                    context = await self._context_provider.get_context(query)
+                    # Use invoking() with ChatMessage - the ContextProvider interface
+                    user_message = ChatMessage(role="user", text=query)
+                    async with self._context_provider as provider:
+                        context_result = await provider.invoking(user_message)
                     
-                    # Parse context into results format
-                    # The context provider returns formatted text, so we structure it
-                    if context:
-                        return [{
-                            "content": context,
-                            "title": "Retrieved Context",
-                            "score": 1.0,
-                            "metadata": {
-                                "document_id": "context_provider_result",
-                                "intent": query,
-                                "source": "AzureAISearchContextProvider",
-                            }
-                        }]
+                    # Parse Context.messages into results format
+                    if context_result and context_result.messages:
+                        context_parts = [msg.text for msg in context_result.messages if msg.text]
+                        context = "\n\n".join(context_parts)
+                        if context:
+                            return [{
+                                "content": context,
+                                "title": "Retrieved Context (Agentic)",
+                                "score": 1.0,
+                                "metadata": {
+                                    "document_id": "context_provider_result",
+                                    "intent": query,
+                                    "source": "AzureAISearchContextProvider (agentic)",
+                                }
+                            }]
                 except Exception as e:
                     logger.warning(f"AzureAISearchContextProvider search failed, falling back: {e}")
             

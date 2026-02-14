@@ -1,3 +1,6 @@
+> [!CAUTION]
+> These exercises have not been tested. There could be incorrect or missing instructions.
+
 # Optional Exercise: Build an SRE Agent
 
 **Objective:** Build a Site Reliability Engineering (SRE) agent that monitors, diagnoses, and remediates infrastructure issues automatically.

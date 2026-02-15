@@ -10,16 +10,16 @@
 
 | Component | Value |
 |-----------|-------|
-| AKS Cluster | `aks-3aa6nbg5qypnk` |
-| Resource Group | `rg-apim-mcp-aks-2` |
+| AKS Cluster | `aks-<unique-suffix>` |
+| Resource Group | `rg-apim-mcp-aks-<env>` |
 | Location | `eastus2` |
-| LoadBalancer IP | `20.114.183.41` |
-| MCP Endpoint | `http://20.114.183.41/runtime/webhooks/mcp` |
-| Cosmos DB | `cosmos-3aa6nbg5qypnk-eastus2.documents.azure.com` |
+| LoadBalancer IP | `<loadbalancer-ip>` |
+| MCP Endpoint | `http://<loadbalancer-ip>/runtime/webhooks/mcp` |
+| Cosmos DB | `cosmos-<unique-suffix>-eastus2.documents.azure.com` |
 | Lightning Database | `agent_rl` |
 | Kubernetes Version | `1.32.x` |
 | Pod Replicas | 2 |
-| Image | `cr3aa6nbg5qypnk.azurecr.io/mcp-agents:latest` |
+| Image | `<registry>.azurecr.io/mcp-agents:latest` |
 | Volume Mount | `/tmp` (emptyDir for dataset building) |
 
 ---

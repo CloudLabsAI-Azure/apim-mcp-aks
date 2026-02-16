@@ -127,7 +127,7 @@ resource foundryAccount 'Microsoft.CognitiveServices/accounts@2025-06-01' existi
   name: foundryAccountName
 }
 
-// Cognitive Services OpenAI User - access to models (GPT-5.2-chat)
+// Cognitive Services OpenAI User - access to models (gpt-4o-mini)
 resource openAIUserAgent 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(foundryAccount.id, agentPrincipalId, CognitiveServicesOpenAIUser, deploymentSuffix)
   scope: foundryAccount

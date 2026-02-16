@@ -98,15 +98,15 @@
     },
     "foundryModelDeploymentName": {
       "type": "string",
-      "defaultValue": "gpt-5.2-chat"
+      "defaultValue": "gpt-4o-mini"
     },
     "foundryModelName": {
       "type": "string",
-      "defaultValue": "gpt-5.2-chat"
+      "defaultValue": "gpt-4o-mini"
     },
     "foundryModelVersion": {
       "type": "string",
-      "defaultValue": "2025-12-11"
+      "defaultValue": "2024-07-18"
     },
     "foundryModelCapacity": {
       "type": "int",

@@ -380,16 +380,6 @@ If scores didn't meaningfully change, the issue is usually one of:
 **Prompt Copilot (Agent Mode) with:**
 > "Store the evaluation results for historical tracking. Run: `python -m evals.store_results --input evals/eval_results/eval_summary_*.json --agent-id autonomous-agent --version v1.0-finetuned`. Then verify the results were stored by querying Cosmos DB for evaluation records for the autonomous-agent."
 
-Query historical evaluations:
-
-```sql
-SELECT c.agent_id, c.version, c.timestamp, c.combined_score
-FROM c 
-WHERE c.type = 'evaluation'
-AND c.agent_id = 'autonomous-agent'
-ORDER BY c.timestamp DESC
-```
-
 ---
 
 ## Completion Checklist
@@ -405,7 +395,7 @@ ORDER BY c.timestamp DESC
 - [ ] **Post-training evaluation** re-run on same dataset
 - [ ] Before/after scores compared — improvement validated
 - [ ] Decision gate applied (keep, rollback, or retrain)
-- [ ] Improvements validated in App Insights metrics
+- [ ] Evaluation results stored for historical tracking
 
 ---
 
@@ -427,8 +417,7 @@ You have completed the fine-tuning and evaluation exercise:
 3. **Three dimensions cover the full picture** — intent (understanding), tools (action), task (outcome)
 4. **Decision gates prevent regressions** — never deploy a tuned model without re-evaluating
 5. **Rollback is not failure** — it's evidence-based model management
-6. **Continuous evaluation in CI/CD** catches regressions before they reach production
-7. **Eval scores as reward signals** — the evaluation framework feeds back into the Lightning reward loop, creating a self-improving system
+6. **Training data quality gates matter** — reward thresholds and episode diversity directly determine fine-tuning outcomes
 
 ---
 
@@ -448,7 +437,7 @@ You have completed the fine-tuning and evaluation exercise:
 
 ## Congratulations!
 
-You've completed the **Build Your Own Agent** lab! Through 4 exercises, you've learned to:
+You've completed the **Build Your Own Agent** lab! Through 4 exercises, you:
 
 1. ✅ **Reviewed** the lab objectives, solution architecture, and exercise structure
 2. ✅ **Built** both autonomous and human-in-the-loop agents using GitHub Copilot with SpecKit
@@ -456,30 +445,11 @@ You've completed the **Build Your Own Agent** lab! Through 4 exercises, you've l
 4. ✅ **Fine-tuned and evaluated** your agent using Agent Lightning with reinforcement learning and the Azure AI Evaluation SDK
 
 Your agents now benefit from:
-- **Enterprise governance** through APIM policies
+- **Enterprise security/governance** through APIM policies
 - **Persistent memory** with Cosmos DB
-- **Intelligent search** via AI Foundry and AI Search integration
-- **Human oversight** through Agent 365 approvals
+- **Intelligent search** via AI Foundry and AI Search/FoundryIQ integration
 - **Continuous improvement** via Agent Lightning fine-tuning
 - **Quality assurance** through eval-gated fine-tuning with before/after measurement
 - **Full observability** with Azure Monitor integration
 
 ---
-
-## Next Steps
-
-- Review [AGENTS_ARCHITECTURE.md](../AGENTS_ARCHITECTURE.md) for deeper architectural understanding
-- Check [AGENTS_EVALUATIONS.md](../AGENTS_EVALUATIONS.md) for advanced evaluation techniques
-- See [AGENTS_IDENTITY_DESIGN.md](../AGENTS_IDENTITY_DESIGN.md) for security deep-dive
-- Explore the [Optional Exercises](../LAB_MANUAL_BUILD_YOUR_OWN_AGENT.md#optional-exercises) for advanced topics
-- Implement custom evaluators for domain-specific metrics
-- Set up alerting for evaluation score regression
-- Add more edge-case test queries to the evaluation dataset
-
----
-
-## References
-
-- [Azure AI Evaluation SDK](https://learn.microsoft.com/azure/ai-studio/how-to/develop/evaluate-sdk)
-- [AGENTS_EVALUATIONS.md](../AGENTS_EVALUATIONS.md) - Project evaluation framework
-- [Agent Lightning Design](../AGENTS_AGENT_LIGHTNING_DESIGN.md) - Fine-tuning architecture

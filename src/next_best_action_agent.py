@@ -197,7 +197,8 @@ sessions: Dict[str, Dict[str, Any]] = {}
 
 # Microsoft Agent Framework configuration
 FOUNDRY_PROJECT_ENDPOINT = os.getenv("FOUNDRY_PROJECT_ENDPOINT", "")
-FOUNDRY_MODEL_DEPLOYMENT_NAME = os.getenv("FOUNDRY_MODEL_DEPLOYMENT_NAME", "gpt-5.2-chat")
+FOUNDRY_MODEL_DEPLOYMENT_NAME = os.getenv("FOUNDRY_MODEL_DEPLOYMENT_NAME", "gpt-4o-mini")
+EVALUATOR_MODEL_DEPLOYMENT_NAME = os.getenv("EVALUATOR_MODEL_DEPLOYMENT_NAME", "gpt-5.2-chat")
 EMBEDDING_MODEL_DEPLOYMENT_NAME = os.getenv("EMBEDDING_MODEL_DEPLOYMENT_NAME", "text-embedding-3-large")
 
 # Agent Lightning configuration for fine-tuning and behavior optimization
@@ -5299,13 +5300,13 @@ async def _execute_tool_impl(tool_name: str, arguments: Dict[str, Any]) -> MCPTo
                 base_endpoint = FOUNDRY_PROJECT_ENDPOINT.split('/api/projects')[0] if '/api/projects' in FOUNDRY_PROJECT_ENDPOINT else FOUNDRY_PROJECT_ENDPOINT
                 model_config = {
                     "azure_endpoint": base_endpoint.rstrip('/'),
-                    "azure_deployment": FOUNDRY_MODEL_DEPLOYMENT_NAME,
+                    "azure_deployment": EVALUATOR_MODEL_DEPLOYMENT_NAME,
                     "api_version": "2024-10-21",
                 }
                 
                 # Initialize evaluator with managed identity credential
                 credential = DefaultAzureCredential()
-                # Use is_reasoning_model=True for gpt-5.x models that require max_completion_tokens
+                # Use is_reasoning_model=True for gpt-5.x evaluator model that supports max_completion_tokens
                 evaluator = IntentResolutionEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
                 
                 # Run evaluation
@@ -5369,12 +5370,12 @@ async def _execute_tool_impl(tool_name: str, arguments: Dict[str, Any]) -> MCPTo
                 base_endpoint = FOUNDRY_PROJECT_ENDPOINT.split('/api/projects')[0] if '/api/projects' in FOUNDRY_PROJECT_ENDPOINT else FOUNDRY_PROJECT_ENDPOINT
                 model_config = {
                     "azure_endpoint": base_endpoint.rstrip('/'),
-                    "azure_deployment": FOUNDRY_MODEL_DEPLOYMENT_NAME,
+                    "azure_deployment": EVALUATOR_MODEL_DEPLOYMENT_NAME,
                     "api_version": "2024-10-21",
                 }
                 
                 credential = DefaultAzureCredential()
-                # Use is_reasoning_model=True for gpt-5.x models that require max_completion_tokens
+                # Use is_reasoning_model=True for gpt-5.x evaluator model that supports max_completion_tokens
                 evaluator = ToolCallAccuracyEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
                 
                 result = evaluator(
@@ -5433,12 +5434,12 @@ async def _execute_tool_impl(tool_name: str, arguments: Dict[str, Any]) -> MCPTo
                 base_endpoint = FOUNDRY_PROJECT_ENDPOINT.split('/api/projects')[0] if '/api/projects' in FOUNDRY_PROJECT_ENDPOINT else FOUNDRY_PROJECT_ENDPOINT
                 model_config = {
                     "azure_endpoint": base_endpoint.rstrip('/'),
-                    "azure_deployment": FOUNDRY_MODEL_DEPLOYMENT_NAME,
+                    "azure_deployment": EVALUATOR_MODEL_DEPLOYMENT_NAME,
                     "api_version": "2024-10-21",
                 }
                 
                 credential = DefaultAzureCredential()
-                # Use is_reasoning_model=True for gpt-5.x models that require max_completion_tokens
+                # Use is_reasoning_model=True for gpt-5.x evaluator model that supports max_completion_tokens
                 evaluator = TaskAdherenceEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
                 
                 # Build kwargs for evaluator
@@ -5513,7 +5514,7 @@ async def _execute_tool_impl(tool_name: str, arguments: Dict[str, Any]) -> MCPTo
                 base_endpoint = FOUNDRY_PROJECT_ENDPOINT.split('/api/projects')[0] if '/api/projects' in FOUNDRY_PROJECT_ENDPOINT else FOUNDRY_PROJECT_ENDPOINT
                 model_config = {
                     "azure_endpoint": base_endpoint.rstrip('/'),
-                    "azure_deployment": FOUNDRY_MODEL_DEPLOYMENT_NAME,
+                    "azure_deployment": EVALUATOR_MODEL_DEPLOYMENT_NAME,
                     "api_version": "2024-10-21",
                 }
                 
@@ -5628,14 +5629,14 @@ async def _execute_tool_impl(tool_name: str, arguments: Dict[str, Any]) -> MCPTo
                 base_endpoint = FOUNDRY_PROJECT_ENDPOINT.split('/api/projects')[0] if '/api/projects' in FOUNDRY_PROJECT_ENDPOINT else FOUNDRY_PROJECT_ENDPOINT
                 model_config = {
                     "azure_endpoint": base_endpoint.rstrip('/'),
-                    "azure_deployment": FOUNDRY_MODEL_DEPLOYMENT_NAME,
+                    "azure_deployment": EVALUATOR_MODEL_DEPLOYMENT_NAME,
                     "api_version": "2024-10-21",
                 }
                 
                 credential = DefaultAzureCredential()
                 
                 # Initialize evaluators once
-                # Use is_reasoning_model=True for gpt-5.x models that require max_completion_tokens
+                # Use is_reasoning_model=True for gpt-5.x evaluator model that supports max_completion_tokens
                 intent_eval = IntentResolutionEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
                 tool_eval = ToolCallAccuracyEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
                 task_eval = TaskAdherenceEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)

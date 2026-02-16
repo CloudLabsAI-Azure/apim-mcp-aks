@@ -26,6 +26,10 @@ GOOD_TOOLS = {
     "get_customer_facts", "get_churn_prediction", "get_customer_segment",
     "search_similar_churned", "recommend_retention_action",
     "create_retention_case", "log_analysis_result",
+    # Healthcare digital quality tools
+    "next_best_action", "ask_foundry", "search_facts",
+    "get_customer_churn_facts", "cross_domain_analysis",
+    "store_memory", "recall_memory",
     # Lightning operational tools are expected for system episodes
     "lightning_list_episodes", "lightning_get_episode",
     "lightning_assign_reward", "lightning_list_rewards",

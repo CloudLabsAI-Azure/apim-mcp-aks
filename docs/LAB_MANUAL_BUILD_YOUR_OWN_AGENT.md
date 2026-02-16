@@ -140,7 +140,6 @@ Inspect security, governance, memory, and observability.
 - Check Fabric IQ/Storage for ontologies
 - Check Log Analytics and App Insights for observability
 - Check Entra ID/RBAC for identity
-- Check Agent 365 for approval history
 - Identify any problems with your agents
 
 **[Full Exercise →](exercises/exercise_03_review_agents_control_plane.md)**
@@ -159,7 +158,7 @@ Establish baseline evaluations, fine-tune with Agent Lightning, re-evaluate to v
 - Deploy fine-tuned model
 - Re-run evaluations and compare before/after scores
 - Apply decision gate: keep, rollback, or retrain
-- Set up continuous evaluation in CI/CD
+- Store evaluation results for historical tracking
 
 **[Full Exercise →](exercises/exercise_04_fine_tune_agent_evaluations.md)**
 

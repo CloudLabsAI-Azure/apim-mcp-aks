@@ -1,0 +1,152 @@
+{
+  "mode": "sequential",
+  "summary": {
+    "total_evaluated": 10,
+    "avg_intent_resolution": 1.8,
+    "avg_tool_call_accuracy": 3.8,
+    "task_adherence_flagged": 0,
+    "all_passed": false
+  },
+  "per_item_results": [
+    {
+      "query": "What are the open quality care gaps for member M-10042 in measurement year 2026?",
+      "response_preview": "Intent: quality_gap_identification\n\nAction Plan (4 steps):\n  Step 1: Member Lookup - Retrieve member M-10042 clinical context including conditions, risk score, and attribution\n  Step 2: Gap Retrieval ...",
+      "evaluations": {
+        "intent_resolution": {
+          "score": 1.0,
+          "threshold": 3,
+          "passed": false,
+          "explanation": "The user asked for the specific open quality care gaps for a named member and year. The agent did not provide any gaps or findings, instead outlining a generic action plan. No concrete information was delivered, so the intent was not resolved."
+        },
+        "tool_call_accuracy": {
+          "score": 2.0,
+          "threshold": 3,
+          "passed": false,
+          "explanation": "Let's think step by step:\n1. The user's last query asks for specific data: open quality care gaps for member M-10042 in measurement year 2026.\n2. The available tool is `next_best_action`, which is designed to analyze a task and generate an action plan, not to retrieve member-specific clinical or quality gap data.\n3. The agent made a single tool call to `next_best_action` with a generic task description. While loosely related, this tool does not retrieve or identify actual care gaps and therefore does not meaningfully address the query.\n4. The parameter passed (task description) is grounded in the user query and not fabricated, but the semantic purpose of the tool does not match the information need.\n5. As a result, the tool call is only partially relevant and fails to help answer the query, with no execution error but incorrect tool usage.\n6. This aligns with Tool Call Accuracy Level 2 (Partially Relevant - Wrong Execution)."
+        },
+        "task_adherence": {
+          "flagged": 0.0,
+          "passed": true,
+          "reasoning": "The user asked for the open quality care gaps for a specific member and measurement year. The assistant did not provide any gaps, measures, or findings, nor did it ask a clarifying question or explain limitations. Instead, it only restated an intended action plan without executing it or producing results. There are no tool calls or evidence of data retrieval, making the response unusable for the stated objective. This is a material failure to achieve the user\u2019s goal."
+        }
+      },
+      "all_passed": false
+    },
+    {
+      "query": "Score the closure probability for a diabetes A1c screening action for member M-20187",
+      "response_preview": "Intent: action_scoring\n\nAction Plan (4 steps):\n  Step 1: Context Retrieval - Get member M-20187 clinical context including diabetes history and last A1c date\n  Step 2: Gap Verification - Confirm open ...",
+      "evaluations": {
+        "intent_resolution": {
+          "score": 2.0,
+          "threshold": 3,
+          "passed": false,
+          "explanation": "The user wanted an actual closure probability score for a diabetes A1c screening for a specific member. The agent only outlined a high-level action plan without retrieving data, running a model, or returning any score, so the intent was not completed."
+        },
+        "tool_call_accuracy": {
+          "score": 5.0,
+          "threshold": 3,
+          "passed": true,
+          "explanation": "Let's think step by step: The user's last query asks to score the closure probability for a diabetes A1c screening action for a specific member. The available tool, next_best_action, is designed to analyze a task and generate an action plan, which is directly relevant to scoring such a healthcare action. The agent made a single tool call using this tool with a task parameter that accurately reflects the user's request and includes the correct member identifier. The parameter is grounded in the conversation, no tools are missing, no unnecessary duplicate calls were made, and there were no execution errors. Therefore, the tool usage is optimal."
+        },
+        "task_adherence": {
+          "flagged": 0.0,
+          "passed": true,
+          "reasoning": "The user asked for an actual closure probability score for a diabetes A1c screening action. The assistant did not provide a score, confidence interval, or recommendation; instead it only outlined a proposed action plan. This is an incomplete deliverable that does not achieve the stated objective. Additionally, the response implies external data retrieval and ML scoring, but there are no tool calls or results to support those claims. This makes the output unusable for the requested purpose."
+        }
+      },
+      "all_passed": false
+    },
+    {
+      "query": "Queue an outreach to member M-30291 via phone call about their overdue breast cancer screening",
+      "response_preview": "Intent: member_outreach\n\nAction Plan (4 steps):\n  Step 1: Member Context - Retrieve member M-30291 profile including contact preferences and SDOH flags\n  Step 2: Gap Confirmation - Verify open Breast ...",
+      "evaluations": {
+        "intent_resolution": {
+          "score": 2.0,
+          "threshold": 3,
+          "passed": false,
+          "explanation": "The user wanted the outreach phone call to be queued for an overdue breast cancer screening. The agent only provided a high-level action plan without executing or confirming the outreach, leaving the core request unfulfilled."
+        },
+        "tool_call_accuracy": {
+          "score": 5.0,
+          "threshold": 3,
+          "passed": true,
+          "explanation": "Let's think step by step: The user's last query is to queue an outreach to member M-30291 via phone call about an overdue breast cancer screening. The only available tool is `next_best_action`, which is designed to analyze a task and generate an action plan, making it relevant to planning and initiating such an outreach. The agent made a single tool call using this tool with a task parameter that accurately and fully reflects the user's request, with no fabricated or incorrect information. There were no missing tool calls, no unnecessary duplicate calls, and no execution errors. Given the available tools, this call appropriately supports addressing the user's request."
+        },
+        "task_adherence": {
+          "flagged": 0.0,
+          "passed": true,
+          "reasoning": "The user\u2019s objective was to queue an outreach phone call for a specific member about an overdue breast cancer screening. The assistant did not actually perform this action, nor did it provide confirmation that the outreach was queued. Instead, it only outlined a high-level intent and a proposed action plan. There were no tool calls or other evidence of execution, and no clarifying questions were asked that would justify stopping short of the requested outcome. As a result, the response is incomplete and does not achieve the user\u2019s stated goal."
+        }
+      },
+      "all_passed": false
+    },
+    {
+      "query": "Create a care alert for provider DR-5578 about high-risk member M-40123 with multiple open gaps",
+      "response_preview": "Intent: care_alert_creation\n\nAction Plan (4 steps):\n  Step 1: Member Assessment - Retrieve member M-40123 risk score, open gap count, and clinical context\n  Step 2: Provider Verification - Confirm pro...",
+      "evaluations": {
+        "intent_resolution": {
+          "score": 2.0,
+          "threshold": 3,
+          "passed": false,
+          "explanation": "User wanted a care alert created for a specific provider and high-risk member. The agent only provided a high-level action plan without actually creating the alert, confirming completion, or supplying alert details, leaving the core intent unresolved."
+        },
+        "tool_call_accuracy": {
+          "score": 5.0,
+          "threshold": 3,
+          "passed": true,
+          "explanation": "Let's think step by step: The user's last query is to create a care alert for a specific provider (DR-5578) about a high-risk member (M-40123) with multiple open gaps. The available tool is `next_best_action`, which is designed to analyze a task and generate an action plan. Given the tool definitions, this is the only relevant tool that could be used to operationalize or plan the requested care alert. The agent made a single tool call to `next_best_action` with a task parameter that correctly reflects the user's request and uses grounded identifiers from the conversation. There are no fabricated parameters, no missing required tools given the available definitions, no duplicate or unnecessary calls, and no execution errors reported. Therefore, the tool call is relevant, correct, complete, and efficient within the scope of the available tools."
+        },
+        "task_adherence": {
+          "flagged": 0.0,
+          "passed": true,
+          "reasoning": "The user asked to create a care alert for a specific provider and member. The assistant did not create or present a care alert, nor provide alert content or confirmation of creation. Instead, it only outlined an intent and a high\u2011level action plan. There are no tool calls or evidence of execution, and no clarifying question was asked. This leaves the requested deliverable incomplete and unusable, making it a material failure to achieve the user\u2019s objective."
+        }
+      },
+      "all_passed": false
+    },
+    {
+      "query": "Log the completed colorectal cancer screening intervention for member M-50034 performed on 2026-02-10",
+      "response_preview": "Intent: intervention_logging\n\nAction Plan (3 steps):\n  Step 1: Gap Verification - Confirm Colorectal Cancer Screening gap was open for member M-50034\n  Step 2: Intervention Recording - Log completed s...",
+      "evaluations": {
+        "intent_resolution": {
+          "score": 2.0,
+          "threshold": 3,
+          "passed": false,
+          "explanation": "The user wanted confirmation that a completed colorectal cancer screening intervention was logged. The agent only provided a high-level action plan without recording details, confirming completion, or closing the gap, so the intent was not actually resolved."
+        },
+        "tool_call_accuracy": {
+          "score": 2.0,
+          "threshold": 3,
+          "passed": false,
+          "explanation": "Let's think step by step:\n1. The user's last query asks to log a completed colorectal cancer screening intervention for a specific member on a specific date.\n2. Looking at the available tool definitions, the only tool provided is `next_best_action`, which analyzes a task and generates an action plan; it does not perform or record/log an intervention.\n3. The agent made one tool call to `next_best_action` with a task string describing the logging request. While the task text reflects the user's request, the tool itself does not accomplish logging or recording the intervention.\n4. The parameter passed (`task`) is grounded in the conversation and not fabricated, so parameter correctness is fine. However, the tool chosen cannot actually help fulfill the user's request.\n5. Because the tool call is only loosely related and does not retrieve or execute information that helps address the logging request, and the necessary capability/tool to log the intervention was not invoked (or does not exist here), the correct level is Partially Relevant \u2013 Wrong Execution."
+        },
+        "task_adherence": {
+          "flagged": 0.0,
+          "passed": true,
+          "reasoning": "The user requested that a completed colorectal cancer screening intervention be logged. The assistant did not perform the logging or provide confirmation that it was completed; instead, it only outlined an intent and a high-level action plan. No tool interactions were used, and no evidence of the intervention being recorded or the gap being closed was provided. This leaves the requested task incomplete and implies external actions without corroboration."
+        }
+      },
+      "all_passed": false
+    },
+    {
+      "error": "SSE session failed",
+      "query": "Run the daily NBA proactive gap closure analysis for the attributed member panel of provider DR-7712"
+    },
+    {
+      "error": "SSE session failed",
+      "query": "What is the next best action for member M-60045 who has a high risk score and open gaps in diabetes care and blood pressure control?"
+    },
+    {
+      "error": "SSE session failed",
+      "query": "Identify members with SDOH risk factors who have open preventive care gaps and low engagement scores"
+    },
+    {
+      "error": "SSE session failed",
+      "query": "Compare outreach effectiveness across channels (phone, SMS, mail, portal) for closing immunization gaps in the pediatric population"
+    },
+    {
+      "error": "SSE session failed",
+      "query": "A provider is requesting a real-time NBA recommendation for member M-70089 during an office visit to address open quality measures"
+    }
+  ]
+}

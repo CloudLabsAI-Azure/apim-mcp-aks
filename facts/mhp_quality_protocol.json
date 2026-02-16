@@ -1,0 +1,145 @@
+{
+  "protocol_name": "Meridian Health Partners Quality Protocol",
+  "protocol_id": "MHP-QP-v3.2.1",
+  "effective_date": "2026-01-01",
+  "organization": "Meridian Health Partners",
+  "sections": {
+    "quality_scoring_formula": {
+      "title": "MHP Quality Score (MHP-QS) Formula",
+      "formula": "MHP_QS = (0.35 * HEDIS_Composite) + (0.25 * CAHPS_Weighted) + (0.20 * Rx_Adherence_PDC) + (0.15 * Preventive_Completion) + (0.05 * Readmission_Inverse)",
+      "components": {
+        "HEDIS_Composite": "Weighted average of tracked HEDIS measures using MHP Measure Weights",
+        "CAHPS_Weighted": "(Overall_Rating * 0.4) + (Getting_Care * 0.3) + (Communication * 0.3)",
+        "Rx_Adherence_PDC": "Plan-wide average Proportion of Days Covered across all monitored drug classes",
+        "Preventive_Completion": "completed_preventive_actions / eligible_preventive_actions",
+        "Readmission_Inverse": "1 - thirty_day_readmission_rate"
+      },
+      "target_score": 82.0,
+      "stars_threshold_mapping": {
+        "5_star": ">= 90",
+        "4_star": "80 - 89.9",
+        "3_star": "70 - 79.9",
+        "2_star": "60 - 69.9",
+        "1_star": "< 60"
+      }
+    },
+    "measure_weights": {
+      "title": "MHP HEDIS Measure Weights",
+      "description": "Proprietary weights used in HEDIS_Composite calculation reflecting MHP strategic priorities",
+      "weights": {
+        "COL": {"name": "Colorectal Cancer Screening", "weight": 2.1, "rationale": "Highest STARS impact per CMS methodology"},
+        "BCS": {"name": "Breast Cancer Screening", "weight": 1.8, "rationale": "High member volume and closure opportunity"},
+        "CDC-H": {"name": "Comprehensive Diabetes Care - HbA1c", "weight": 1.5, "rationale": "Chronic condition management priority"},
+        "CBP": {"name": "Controlling High Blood Pressure", "weight": 1.3, "rationale": "Hypertension prevalence in MA population"},
+        "SPC": {"name": "Statin Therapy for Cardiovascular Disease", "weight": 1.1, "rationale": "Pharmacy-driven measure with Rx integration"},
+        "DSF": {"name": "Depression Screening Follow-up", "weight": 1.0, "rationale": "Behavioral health baseline tracking"},
+        "WCV": {"name": "Well-Child Visits", "weight": 0.9, "rationale": "Pediatric population subset"},
+        "IMM": {"name": "Immunizations", "weight": 0.8, "rationale": "Seasonal variability in tracking"}
+      }
+    },
+    "risk_tier_classification": {
+      "title": "MHP Risk Tier Classification System",
+      "tiers": {
+        "Tier_1_Critical": {
+          "criteria": "Risk score >= 0.85 AND >= 3 open gaps",
+          "action": "Immediate care manager assignment within 24 hours",
+          "review_frequency": "Daily",
+          "escalation": "VP of Clinical Operations notified if no contact within 48 hours"
+        },
+        "Tier_2_High": {
+          "criteria": "Risk score 0.65-0.84 OR >= 2 open gaps",
+          "action": "Weekly care coordinator review and outreach",
+          "review_frequency": "Weekly",
+          "escalation": "Director of Quality if no engagement within 14 days"
+        },
+        "Tier_3_Moderate": {
+          "criteria": "Risk score 0.40-0.64 AND exactly 1 open gap",
+          "action": "Monthly automated check-in via MyMeridian portal",
+          "review_frequency": "Monthly",
+          "escalation": "Coordinator review if gap not closed within 60 days"
+        },
+        "Tier_4_Low": {
+          "criteria": "Risk score < 0.40 AND 0 open gaps",
+          "action": "Quarterly wellness reminder via portal",
+          "review_frequency": "Quarterly",
+          "escalation": "None - maintenance mode"
+        }
+      }
+    },
+    "outreach_escalation_cadence": {
+      "title": "MHP Outreach Escalation Cadence Protocol",
+      "standard_cadence": [
+        {"day": 0, "channel": "MyMeridian Portal", "action": "Secure message with gap details and scheduling link"},
+        {"day": 3, "channel": "SMS", "action": "Text reminder with appointment booking URL (requires SMS consent)"},
+        {"day": 7, "channel": "Phone", "action": "Care coordinator outbound call during member preferred hours"},
+        {"day": 14, "channel": "Phone + Mail", "action": "Second phone attempt plus mailed letter with provider appointment options"},
+        {"day": 21, "channel": "In-Person", "action": "Home visit request via community health worker (Tier 1 and Tier 2 only)"},
+        {"day": 30, "channel": "Escalation", "action": "Member flagged as non-engaged; escalate to care manager with full outreach history"}
+      ],
+      "exceptions": {
+        "language_barrier": "Interpreter services required at all phone/in-person contacts",
+        "transportation_sdoh": "Ride assistance offer included in Day 7+ contacts",
+        "digital_literacy_low": "Skip portal/SMS; begin at Day 7 phone contact"
+      }
+    },
+    "provider_performance_tiers": {
+      "title": "MHP Provider Performance Classification",
+      "tiers": {
+        "Platinum": {
+          "threshold": ">= 90% gap closure rate",
+          "incentive": "MHP Quality Bonus Program - $2,500 per quarter",
+          "recognition": "Featured in MHP Provider Excellence Report, priority patient panel growth"
+        },
+        "Gold": {
+          "threshold": "80-89% gap closure rate",
+          "incentive": "MHP Quality Incentive - $1,000 per quarter",
+          "recognition": "Quality achievement certificate, peer mentoring eligibility"
+        },
+        "Silver": {
+          "threshold": "70-79% gap closure rate",
+          "incentive": "Standard reimbursement rates",
+          "requirement": "Monthly quality coaching session with MHP Quality Advisor"
+        },
+        "Bronze": {
+          "threshold": "< 70% gap closure rate",
+          "incentive": "Standard reimbursement with quality withhold at risk",
+          "requirement": "Quality Improvement Plan (QIP) submission within 30 days; quarterly progress review"
+        }
+      }
+    },
+    "intervention_cost_effectiveness": {
+      "title": "MHP Intervention Cost-Effectiveness Benchmarks",
+      "benchmarks": {
+        "portal_message": {"cost_per_contact": 0.50, "engagement_rate": 0.12, "roi": 5.1, "best_for": "Low-risk, digitally engaged members"},
+        "sms_reminder": {"cost_per_contact": 0.75, "engagement_rate": 0.18, "roi": 4.2, "best_for": "Moderate-risk members with SMS consent"},
+        "phone_outreach": {"cost_per_contact": 8.50, "engagement_rate": 0.34, "roi": 3.2, "best_for": "High-risk members, complex care coordination"},
+        "care_coordinator_visit": {"cost_per_contact": 45.00, "engagement_rate": 0.62, "roi": 1.8, "best_for": "Tier 1-2 members with multiple comorbidities"},
+        "home_visit": {"cost_per_contact": 125.00, "engagement_rate": 0.78, "roi": 1.2, "best_for": "Non-engaged Tier 1 members with SDOH barriers"}
+      }
+    },
+    "gap_closure_priority_algorithm": {
+      "title": "MHP Gap Closure Priority Algorithm",
+      "formula": "Priority_Score = (Measure_Weight * 10) + (Member_Risk_Score * 5) + (Days_Until_Due * -0.1) + (Predicted_Closure_Prob * 3)",
+      "action_routing": {
+        "top_20_percent": "Automatically approved for immediate execution",
+        "middle_60_percent": "Queued for care coordinator review within 48 hours",
+        "bottom_20_percent": "Deferred to next weekly cycle"
+      },
+      "override_rules": [
+        "Tier 1 members: All actions auto-approved regardless of priority score",
+        "Provider-initiated requests: Bypass priority queue, execute immediately",
+        "SDOH-flagged members: Add +5 points to priority score"
+      ]
+    },
+    "member_engagement_score": {
+      "title": "MHP Member Engagement Score (MES)",
+      "formula": "MES = (Portal_Logins_30d * 0.3) + (Appointment_Attendance_Rate * 0.4) + (Outreach_Response_Rate * 0.3)",
+      "tiers": {
+        "High": {"range": ">= 0.70", "strategy": "Digital-first outreach via MyMeridian portal and SMS"},
+        "Medium": {"range": "0.40 - 0.69", "strategy": "Blended approach with phone as primary channel"},
+        "Low": {"range": "< 0.40", "strategy": "High-touch with care coordinator assignment and in-person outreach"}
+      },
+      "recalculation_frequency": "Monthly on the 1st business day"
+    }
+  }
+}

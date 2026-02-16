@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-02-16T12:17:12.831011",
+  "thresholds": {
+    "intent_resolution": 3,
+    "tool_call_accuracy": 3,
+    "task_adherence": 3,
+    "groundedness": 3,
+    "relevance": 3
+  },
+  "summary": {
+    "total_evaluated": 10,
+    "avg_intent_resolution": 4.75,
+    "avg_tool_call_accuracy": 3.0,
+    "task_adherence_flagged": 1,
+    "avg_groundedness": 4.25,
+    "avg_relevance": 5.0,
+    "all_passed": false
+  },
+  "all_passed": null
+}

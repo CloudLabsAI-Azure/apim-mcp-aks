@@ -227,10 +227,26 @@ sequenceDiagram
 
 | Evaluation | Framework | Threshold |
 |------------|-----------|-----------|
-| Task Adherence | Azure AI Foundry | > 0.90 |
+| Intent Resolution | Azure AI Foundry - IntentResolutionEvaluator | > 4.0 / 5.0 |
+| Tool Call Accuracy | Azure AI Foundry - ToolCallAccuracyEvaluator | > 3.0 / 5.0 |
+| Task Adherence | Azure AI Foundry - TaskAdherenceEvaluator | 0 flagged |
+| Groundedness | Azure AI Foundry - GroundednessEvaluator | > 3.0 / 5.0 |
+| Relevance | Azure AI Foundry - RelevanceEvaluator | > 3.0 / 5.0 |
 | Content Safety | Azure Content Safety | 0 violations |
-| Groundedness | RAG evaluation | > 0.85 |
-| Response Quality | GPT-4 judge | > 0.80 |
+
+### Domain Knowledge Reference
+
+The agent is evaluated against the **Meridian Health Partners Quality Protocol (MHP-QP-v3.2.1)**, a proprietary domain knowledge document stored at `facts/mhp_quality_protocol.json`. This protocol defines:
+- MHP Quality Scoring Formula (MHP-QS) with specific component weights
+- HEDIS Measure Weights (COL=2.1, BCS=1.8, CDC-H=1.5, CBP=1.3, SPC=1.1, DSF=1.0, WCV=0.9, IMM=0.8)
+- Risk Tier Classification system (Tier 1-4 with specific thresholds and actions)
+- Outreach Escalation Cadence (Day 0 through Day 30)
+- Provider Performance Classification (Platinum/Gold/Silver/Bronze with incentives)
+- Intervention Cost-Effectiveness Benchmarks with ROI data
+- Gap Closure Priority Algorithm with override rules
+- Member Engagement Score (MES) formula and tier-based outreach strategies
+
+The GroundednessEvaluator checks whether agent responses correctly reference this protocol. The base model lacks this knowledge; fine-tuning embeds it.
 
 ## Fine-Tuning Specification
 

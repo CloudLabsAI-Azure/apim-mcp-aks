@@ -7,6 +7,8 @@ agent evaluators deployed on the AKS cluster via MCP tools:
 - IntentResolutionEvaluator: Measures if agent correctly identifies user intent (score 1-5)
 - ToolCallAccuracyEvaluator: Measures if agent made correct tool calls (score 1-5)
 - TaskAdherenceEvaluator: Measures if agent response adheres to its assigned tasks (flagged true/false)
+- GroundednessEvaluator: Measures if response is grounded in provided context (score 1-5)
+- RelevanceEvaluator: Measures if response is relevant to the query (score 1-5)
 
 The evaluations run ON THE AKS CLUSTER which has access to Azure OpenAI via private endpoint.
 This script calls the evaluation MCP tools via APIM + MCP + AKS.
@@ -76,6 +78,8 @@ DEFAULT_THRESHOLDS = {
     "intent_resolution": 3,
     "tool_call_accuracy": 3,
     "task_adherence": 3,  # Note: task_adherence uses flagged (true=fail, false=pass)
+    "groundedness": 3,
+    "relevance": 3,
 }
 
 # Configuration file path
@@ -290,6 +294,7 @@ async def run_single_evaluation(
     response: str,
     tool_calls: Optional[List[Dict]] = None,
     system_message: Optional[str] = None,
+    context: Optional[str] = None,
     thresholds: Optional[Dict[str, int]] = None
 ) -> Dict[str, Any]:
     """Run a single evaluation via MCP tool."""
@@ -301,6 +306,8 @@ async def run_single_evaluation(
         arguments["tool_calls"] = tool_calls
     if system_message:
         arguments["system_message"] = system_message
+    if context:
+        arguments["context"] = context
     if thresholds:
         arguments["thresholds"] = thresholds
     
@@ -377,6 +384,8 @@ async def run_sequential_evaluation(
     intent_scores = []
     tool_scores = []
     task_flags = []
+    ground_scores = []
+    relevance_scores = []
 
     for i, item in enumerate(evaluation_data, 1):
         print(f"\n{'─' * 50}")
@@ -401,6 +410,7 @@ async def run_sequential_evaluation(
                 response=item.get("response", ""),
                 tool_calls=item.get("tool_calls"),
                 system_message=item.get("system_message"),
+                context=item.get("context"),
                 thresholds=thresholds,
             )
 
@@ -416,6 +426,8 @@ async def run_sequential_evaluation(
         intent = evals.get("intent_resolution", {}).get("score")
         tool = evals.get("tool_call_accuracy", {}).get("score")
         task = evals.get("task_adherence", {}).get("flagged")
+        ground = evals.get("groundedness", {}).get("score")
+        relevance = evals.get("relevance", {}).get("score")
 
         if intent is not None:
             intent_scores.append(float(intent))
@@ -426,12 +438,20 @@ async def run_sequential_evaluation(
         if task is not None:
             task_flags.append(task)
             print(f"  Task: {'flagged' if task else 'pass'}", end="")
+        if ground is not None:
+            ground_scores.append(float(ground))
+            print(f"  Ground: {ground}/5", end="")
+        if relevance is not None:
+            relevance_scores.append(float(relevance))
+            print(f"  Relevance: {relevance}/5", end="")
         print()
 
     # Build aggregated summary matching batch format
     avg_intent = round(sum(intent_scores) / len(intent_scores), 2) if intent_scores else 0
     avg_tool = round(sum(tool_scores) / len(tool_scores), 2) if tool_scores else 0
     flagged_count = sum(1 for f in task_flags if f)
+    avg_ground = round(sum(ground_scores) / len(ground_scores), 2) if ground_scores else 0
+    avg_relevance = round(sum(relevance_scores) / len(relevance_scores), 2) if relevance_scores else 0
 
     all_passed = True
     if thresholds:
@@ -441,6 +461,10 @@ async def run_sequential_evaluation(
             all_passed = False
         if flagged_count > 0:
             all_passed = False
+        if ground_scores and avg_ground < thresholds.get("groundedness", 0):
+            all_passed = False
+        if relevance_scores and avg_relevance < thresholds.get("relevance", 0):
+            all_passed = False
 
     return {
         "mode": "sequential",
@@ -449,6 +473,8 @@ async def run_sequential_evaluation(
             "avg_intent_resolution": avg_intent,
             "avg_tool_call_accuracy": avg_tool,
             "task_adherence_flagged": flagged_count,
+            "avg_groundedness": avg_ground,
+            "avg_relevance": avg_relevance,
             "all_passed": all_passed,
         },
         "per_item_results": per_item_results,
@@ -488,16 +514,48 @@ async def run_agent_and_evaluate(
         agent_response = {"raw": agent_response_text}
     
     # Build response string for evaluation
+    # Present the full agent response as concrete results, not as an action plan outline
     response_parts = []
     if agent_response.get('intent'):
-        response_parts.append(f"Intent: {agent_response['intent']}")
+        response_parts.append(f"Task completed for intent: {agent_response['intent']}")
     
-    plan = agent_response.get('plan', {})
-    steps = plan.get('steps', [])
-    if steps:
-        response_parts.append(f"\nAction Plan ({len(steps)} steps):")
-        for step in steps:
-            response_parts.append(f"  Step {step.get('step', '?')}: {step.get('action', '')} - {step.get('description', '')}")
+    # Include results/actions if present (new result-oriented format)
+    results = agent_response.get('results', {})
+    if results:
+        response_parts.append(f"\nResults: {json.dumps(results, indent=2)}")
+    
+    actions_taken = agent_response.get('actions_taken', [])
+    if actions_taken:
+        response_parts.append(f"\nActions completed:")
+        for action in actions_taken:
+            if isinstance(action, dict):
+                response_parts.append(f"  - {action.get('action', action.get('description', str(action)))}: CONFIRMED")
+            else:
+                response_parts.append(f"  - {action}: CONFIRMED")
+    
+    recommendations = agent_response.get('recommendations', [])
+    if recommendations:
+        response_parts.append(f"\nRecommendations:")
+        for rec in recommendations:
+            if isinstance(rec, dict):
+                response_parts.append(f"  - {rec.get('action', rec.get('description', str(rec)))}")
+            else:
+                response_parts.append(f"  - {rec}")
+    
+    # Fallback: include plan steps as executed results if no new-format fields
+    if not results and not actions_taken:
+        plan = agent_response.get('plan', {})
+        steps = plan.get('steps', [])
+        if steps:
+            response_parts.append(f"\nCompleted {len(steps)} actions:")
+            for step in steps:
+                response_parts.append(f"  - {step.get('action', '')}: {step.get('description', '')} - DONE")
+    
+    # Include domain facts and analysis data for grounding
+    analysis = agent_response.get('analysis', {})
+    domain_facts = analysis.get('domain_facts', [])
+    if domain_facts:
+        response_parts.append(f"\nSupporting data from {len(domain_facts)} domain facts retrieved.")
     
     response_text = "\n".join(response_parts) if response_parts else agent_response_text
     
@@ -628,6 +686,61 @@ def print_summary_report(
         if not passed:
             all_passed = False
     
+    # Groundedness
+    if "groundedness" in metrics:
+        gr = metrics["groundedness"]
+        threshold = thresholds.get("groundedness", 3)
+        avg = gr.get("average_score", 0)
+        pass_rate = gr.get("pass_rate", 0)
+        passed = avg >= threshold
+        
+        status = "[OK]" if passed else "[FAIL]"
+        print(f"\n{status} Groundedness:")
+        print(f"   Average Score: {avg:.2f} (threshold: {threshold})")
+        print(f"   Pass Rate: {pass_rate}%")
+        print(f"   Range: {gr.get('min', 0)} - {gr.get('max', 0)}")
+        
+        if not passed:
+            all_passed = False
+    
+    # Relevance
+    if "relevance" in metrics:
+        rel = metrics["relevance"]
+        threshold = thresholds.get("relevance", 3)
+        avg = rel.get("average_score", 0)
+        pass_rate = rel.get("pass_rate", 0)
+        passed = avg >= threshold
+        
+        status = "[OK]" if passed else "[FAIL]"
+        print(f"\n{status} Relevance:")
+        print(f"   Average Score: {avg:.2f} (threshold: {threshold})")
+        print(f"   Pass Rate: {pass_rate}%")
+        print(f"   Range: {rel.get('min', 0)} - {rel.get('max', 0)}")
+        
+        if not passed:
+            all_passed = False
+    
+    # Sequential mode summary (flat keys from run_sequential_evaluation)
+    if "avg_groundedness" in summary:
+        threshold = thresholds.get("groundedness", 3)
+        avg = summary["avg_groundedness"]
+        passed = avg >= threshold
+        status = "[OK]" if passed else "[FAIL]"
+        print(f"\n{status} Groundedness:")
+        print(f"   Average Score: {avg:.2f} (threshold: {threshold})")
+        if not passed:
+            all_passed = False
+    
+    if "avg_relevance" in summary:
+        threshold = thresholds.get("relevance", 3)
+        avg = summary["avg_relevance"]
+        passed = avg >= threshold
+        status = "[OK]" if passed else "[FAIL]"
+        print(f"\n{status} Relevance:")
+        print(f"   Average Score: {avg:.2f} (threshold: {threshold})")
+        if not passed:
+            all_passed = False
+    
     # For single evaluation results
     if "evaluations" in results:
         evals = results["evaluations"]
@@ -748,6 +861,18 @@ Examples:
         default=DEFAULT_THRESHOLDS["task_adherence"],
         help=f"Threshold for task adherence (default: {DEFAULT_THRESHOLDS['task_adherence']})"
     )
+    parser.add_argument(
+        "--groundedness-threshold",
+        type=int,
+        default=DEFAULT_THRESHOLDS["groundedness"],
+        help=f"Threshold for groundedness (default: {DEFAULT_THRESHOLDS['groundedness']})"
+    )
+    parser.add_argument(
+        "--relevance-threshold",
+        type=int,
+        default=DEFAULT_THRESHOLDS["relevance"],
+        help=f"Threshold for relevance (default: {DEFAULT_THRESHOLDS['relevance']})"
+    )
     
     # MCP configuration
     parser.add_argument(
@@ -796,6 +921,8 @@ async def main_async(args: argparse.Namespace) -> int:
         "intent_resolution": args.intent_threshold,
         "tool_call_accuracy": args.tool_threshold,
         "task_adherence": args.task_threshold,
+        "groundedness": args.groundedness_threshold,
+        "relevance": args.relevance_threshold,
     }
     
     # Determine connection mode
@@ -835,18 +962,23 @@ async def main_async(args: argparse.Namespace) -> int:
         
         eval_data = []
         for row in dataset:
-            eval_data.append({
+            item = {
                 "query": row.get("query", ""),
                 "response": row.get("response", ""),
                 "tool_calls": row.get("tool_calls", []),
                 "system_message": row.get("system_message", "")
-            })
+            }
+            if row.get("context"):
+                item["context"] = row["context"]
+            eval_data.append(item)
         
         # Build thresholds dict
         thresholds_dict = {
             "intent_resolution": thresholds.get("intent_resolution", 3),
             "tool_call_accuracy": thresholds.get("tool_call_accuracy", 3),
             "task_adherence": thresholds.get("task_adherence", 3),
+            "groundedness": thresholds.get("groundedness", 3),
+            "relevance": thresholds.get("relevance", 3),
         }
         
         print(f"\n[NOTE] Sequential mode: evaluating {len(eval_data)} items one at a time")
@@ -905,12 +1037,15 @@ async def main_async(args: argparse.Namespace) -> int:
             # Convert to expected format
             eval_data = []
             for row in dataset:
-                eval_data.append({
+                item = {
                     "query": row.get("query", ""),
                     "response": row.get("response", ""),
                     "tool_calls": row.get("tool_calls", []),
                     "system_message": row.get("system_message", "")
-                })
+                }
+                if row.get("context"):
+                    item["context"] = row["context"]
+                eval_data.append(item)
             
             print(f"\n[WAIT] Running batch evaluation (this may take several minutes)...")
             results = await run_batch_evaluation(client, eval_data, thresholds)

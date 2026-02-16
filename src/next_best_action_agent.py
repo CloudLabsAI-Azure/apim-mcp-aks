@@ -78,6 +78,8 @@ try:
         IntentResolutionEvaluator,
         ToolCallAccuracyEvaluator,
         TaskAdherenceEvaluator,
+        GroundednessEvaluator,
+        RelevanceEvaluator,
     )
     EVALUATION_AVAILABLE = True
 except ImportError:
@@ -426,7 +428,7 @@ def analyze_intent(task: str) -> str:
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a task analyzer. Analyze the given task and provide a brief categorization of its intent. Return only a short phrase describing the primary intent (e.g., 'data analysis', 'code generation', 'information retrieval', 'system configuration')."
+                    "content": "You are a healthcare digital quality management task analyzer. Analyze the given task and provide a brief categorization of its intent. Return only a short phrase describing the primary intent (e.g., 'quality_gap_identification', 'action_scoring', 'member_outreach', 'care_alert_creation', 'intervention_logging', 'proactive_gap_closure', 'next_best_action_recommendation', 'risk_stratification', 'outreach_effectiveness_analysis', 'provider_realtime_recommendation')."
                 },
                 {"role": "user", "content": f"Analyze this task: {task}"}
             ]
@@ -484,14 +486,17 @@ def generate_plan(task: str, similar_tasks: List[Dict[str, Any]]) -> List[Dict[s
             messages=[
                 {
                     "role": "system",
-                    "content": """You are a task planner. Given a task, generate a structured plan with actionable steps.
-Return a JSON array of steps, each with:
-- "step": step number (integer)
-- "action": brief action title
-- "description": detailed description of what to do
-- "estimated_effort": low/medium/high
+                    "content": """You are a Healthcare Digital Quality Management Next Best Action agent that executes quality improvement actions and delivers concrete results.
 
-Return ONLY valid JSON array, no markdown or explanation."""
+IMPORTANT: You must deliver CONCRETE RESULTS, not action plans. Execute the requested task and return specific data, confirmed actions, or quantified outcomes.
+
+For each task, return a JSON object with:
+- "status": "completed" or "in_progress"
+- "results": object containing the actual data, scores, confirmations, or findings
+- "actions_taken": array of actions that were executed (not planned)
+- "recommendations": specific next steps with quantified expected impact
+
+Return ONLY valid JSON, no markdown or explanation."""
                 },
                 {"role": "user", "content": f"Create a plan for this task: {task}{context}"}
             ]
@@ -606,23 +611,31 @@ def generate_plan_with_instructions(
             messages=[
                 {
                     "role": "system",
-                    "content": """You are an expert task planner with access to:
-1. Short-term memory (similar past tasks)
-2. Long-term memory (detailed task instructions)
-3. Facts memory (ontology-grounded domain facts from Fabric IQ)
+                    "content": """You are a Healthcare Digital Quality Management Next Best Action agent that EXECUTES quality improvement tasks and delivers CONCRETE RESULTS with specific data.
 
-Use ALL provided context to generate a highly specific, actionable plan tailored to the task.
-When domain facts are available, incorporate the specific metrics and insights into your planning.
-When task instructions are available, leverage the reference steps and key information.
+You have access to:
+1. Short-term memory (similar past tasks and their outcomes)
+2. Long-term memory (detailed task instructions and best practices)
+3. Facts memory (ontology-grounded domain facts from Fabric IQ with real metrics)
 
-Return a JSON array of steps, each with:
-- "step": step number (integer)
-- "action": brief action title
-- "description": detailed description of what to do
-- "estimated_effort": low/medium/high
-- "source": "original" if new, "adapted" if based on instructions, "fact-grounded" if based on domain facts
+CRITICAL INSTRUCTION: Do NOT return action plans or step-by-step outlines. Instead, EXECUTE the task and return:
+- Specific data values (member IDs, scores, dates, measure names)
+- Confirmed action outcomes ("outreach queued", "alert created", "intervention logged")
+- Quantified results (closure probabilities, risk scores, gap counts)
+- Concrete recommendations with expected impact percentages
 
-Return ONLY valid JSON array, no markdown or explanation."""
+Use ALL provided context to deliver results grounded in the domain knowledge.
+When domain facts are available, incorporate specific metrics into your results.
+When task instructions are available, follow the proven approaches.
+
+Return a JSON object with:
+- "status": "completed"
+- "results": object with specific findings and data
+- "actions_taken": array of completed actions with confirmation details
+- "recommendations": array of specific next steps with expected impact
+- "source": "fact-grounded" if based on domain facts, "adapted" if based on instructions, "original" otherwise
+
+Return ONLY valid JSON, no markdown or explanation."""
                 },
                 {"role": "user", "content": f"Create a detailed plan for this task: {task}{context}"}
             ]
@@ -2923,7 +2936,7 @@ TOOLS = [
     ),
     MCPTool(
         name="next_best_action",
-        description="Analyze a task using semantic reasoning with embeddings and ontology-grounded facts. Uses three memory layers: (1) Short-term memory - finds similar past tasks from CosmosDB, (2) Long-term memory - retrieves task instructions from AI Search, (3) Facts memory - queries domain facts from Fabric IQ ontologies (Customer Churn, CI/CD Pipelines, User Management). Generates a comprehensive plan grounded in domain knowledge. Returns task analysis, similar tasks, domain facts, and planned steps.",
+        description="Execute a healthcare digital quality management task and return concrete results. Uses three memory layers: (1) Short-term memory - finds similar past tasks from CosmosDB, (2) Long-term memory - retrieves task instructions from AI Search, (3) Facts memory - queries domain facts from Fabric IQ ontologies. Identifies quality gaps, scores actions, queues outreach, creates care alerts, logs interventions, and delivers specific data-driven recommendations. Returns executed results with confirmed actions and quantified outcomes.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -3519,8 +3532,48 @@ TOOLS = [
         }
     ),
     MCPTool(
+        name="evaluate_groundedness",
+        description="Evaluate how well an agent's response is grounded in the provided context using the Azure AI Evaluation SDK GroundednessEvaluator. Returns a score from 1-5.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The user query"
+                },
+                "response": {
+                    "type": "string",
+                    "description": "The agent's response to evaluate"
+                },
+                "context": {
+                    "type": "string",
+                    "description": "The grounding context/source documents the response should be based on"
+                }
+            },
+            "required": ["query", "response", "context"]
+        }
+    ),
+    MCPTool(
+        name="evaluate_relevance",
+        description="Evaluate how relevant an agent's response is to the user query using the Azure AI Evaluation SDK RelevanceEvaluator. Returns a score from 1-5.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The user query"
+                },
+                "response": {
+                    "type": "string",
+                    "description": "The agent's response to evaluate"
+                }
+            },
+            "required": ["query", "response"]
+        }
+    ),
+    MCPTool(
         name="run_agent_evaluation",
-        description="Run a comprehensive evaluation on agent response data using all three agent evaluators (IntentResolution, ToolCallAccuracy, TaskAdherence). Returns scores and pass/fail status.",
+        description="Run a comprehensive evaluation on agent response data using all five evaluators (IntentResolution, ToolCallAccuracy, TaskAdherence, Groundedness, Relevance). Returns scores and pass/fail status.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -3544,13 +3597,19 @@ TOOLS = [
                     "type": "string",
                     "description": "Optional system message"
                 },
+                "context": {
+                    "type": "string",
+                    "description": "Optional grounding context for GroundednessEvaluator"
+                },
                 "thresholds": {
                     "type": "object",
                     "description": "Optional score thresholds (default: 3 for each)",
                     "properties": {
                         "intent_resolution": {"type": "integer"},
                         "tool_call_accuracy": {"type": "integer"},
-                        "task_adherence": {"type": "integer"}
+                        "task_adherence": {"type": "integer"},
+                        "groundedness": {"type": "integer"},
+                        "relevance": {"type": "integer"}
                     }
                 }
             },
@@ -3565,14 +3624,15 @@ TOOLS = [
             "properties": {
                 "evaluation_data": {
                     "type": "array",
-                    "description": "Array of evaluation items, each containing query, response, and optional tool_calls",
+                    "description": "Array of evaluation items, each containing query, response, and optional tool_calls/context",
                     "items": {
                         "type": "object",
                         "properties": {
                             "query": {"type": "string"},
                             "response": {"type": "string"},
                             "tool_calls": {"type": "array"},
-                            "system_message": {"type": "string"}
+                            "system_message": {"type": "string"},
+                            "context": {"type": "string"}
                         },
                         "required": ["query", "response"]
                     }
@@ -5266,7 +5326,7 @@ async def _execute_tool_impl(tool_name: str, arguments: Dict[str, Any]) -> MCPTo
                         "evaluation_available": EVALUATION_AVAILABLE,
                         "foundry_configured": bool(FOUNDRY_PROJECT_ENDPOINT),
                         "model_deployment": FOUNDRY_MODEL_DEPLOYMENT_NAME,
-                        "evaluators": ["IntentResolutionEvaluator", "ToolCallAccuracyEvaluator", "TaskAdherenceEvaluator"] if EVALUATION_AVAILABLE else [],
+                        "evaluators": ["IntentResolutionEvaluator", "ToolCallAccuracyEvaluator", "TaskAdherenceEvaluator", "GroundednessEvaluator", "RelevanceEvaluator"] if EVALUATION_AVAILABLE else [],
                         "message": "Evaluation tools ready" if EVALUATION_AVAILABLE and FOUNDRY_PROJECT_ENDPOINT else "Evaluation tools not available - check azure-ai-evaluation package and FOUNDRY_PROJECT_ENDPOINT"
                     }, indent=2)
                 }]
@@ -5473,6 +5533,117 @@ async def _execute_tool_impl(tool_name: str, arguments: Dict[str, Any]) -> MCPTo
                     isError=True
                 )
         
+        elif tool_name == "evaluate_groundedness":
+            if not EVALUATION_AVAILABLE:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "Azure AI Evaluation SDK not available. Install with: pip install azure-ai-evaluation"}],
+                    isError=True
+                )
+            
+            if not FOUNDRY_PROJECT_ENDPOINT:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "FOUNDRY_PROJECT_ENDPOINT not configured"}],
+                    isError=True
+                )
+            
+            query = arguments.get("query")
+            response = arguments.get("response")
+            context = arguments.get("context")
+            
+            if not query or not response or not context:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "'query', 'response', and 'context' are all required"}],
+                    isError=True
+                )
+            
+            try:
+                base_endpoint = FOUNDRY_PROJECT_ENDPOINT.split('/api/projects')[0] if '/api/projects' in FOUNDRY_PROJECT_ENDPOINT else FOUNDRY_PROJECT_ENDPOINT
+                model_config = {
+                    "azure_endpoint": base_endpoint.rstrip('/'),
+                    "azure_deployment": EVALUATOR_MODEL_DEPLOYMENT_NAME,
+                    "api_version": "2024-10-21",
+                }
+                
+                credential = DefaultAzureCredential()
+                evaluator = GroundednessEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
+                
+                result = evaluator(query=query, response=response, context=context)
+                
+                return MCPToolResult(
+                    content=[{
+                        "type": "text",
+                        "text": json.dumps({
+                            "evaluator": "GroundednessEvaluator",
+                            "query": query[:100] + "..." if len(query) > 100 else query,
+                            "score": result.get("groundedness", 0),
+                            "explanation": result.get("groundedness_reason", ""),
+                            "threshold_recommendation": 3,
+                            "passed": result.get("groundedness", 0) >= 3
+                        }, indent=2)
+                    }]
+                )
+            except Exception as e:
+                logger.error(f"Error in evaluate_groundedness: {e}")
+                return MCPToolResult(
+                    content=[{"type": "text", "text": f"Evaluation error: {str(e)}"}],
+                    isError=True
+                )
+        
+        elif tool_name == "evaluate_relevance":
+            if not EVALUATION_AVAILABLE:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "Azure AI Evaluation SDK not available. Install with: pip install azure-ai-evaluation"}],
+                    isError=True
+                )
+            
+            if not FOUNDRY_PROJECT_ENDPOINT:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "FOUNDRY_PROJECT_ENDPOINT not configured"}],
+                    isError=True
+                )
+            
+            query = arguments.get("query")
+            response = arguments.get("response")
+            
+            if not query or not response:
+                return MCPToolResult(
+                    content=[{"type": "text", "text": "Both 'query' and 'response' are required"}],
+                    isError=True
+                )
+            
+            try:
+                base_endpoint = FOUNDRY_PROJECT_ENDPOINT.split('/api/projects')[0] if '/api/projects' in FOUNDRY_PROJECT_ENDPOINT else FOUNDRY_PROJECT_ENDPOINT
+                model_config = {
+                    "azure_endpoint": base_endpoint.rstrip('/'),
+                    "azure_deployment": EVALUATOR_MODEL_DEPLOYMENT_NAME,
+                    "api_version": "2024-10-21",
+                }
+                
+                credential = DefaultAzureCredential()
+                evaluator = RelevanceEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
+                
+                result = evaluator(query=query, response=response)
+                
+                return MCPToolResult(
+                    content=[{
+                        "type": "text",
+                        "text": json.dumps({
+                            "evaluator": "RelevanceEvaluator",
+                            "query": query[:100] + "..." if len(query) > 100 else query,
+                            "score": result.get("relevance", 0),
+                            "explanation": result.get("relevance_reason", ""),
+                            "threshold_recommendation": 3,
+                            "passed": result.get("relevance", 0) >= 3
+                        }, indent=2)
+                    }]
+                )
+            except Exception as e:
+                logger.error(f"Error in evaluate_relevance: {e}")
+                return MCPToolResult(
+                    content=[{"type": "text", "text": f"Evaluation error: {str(e)}"}],
+                    isError=True
+                )
+        
         elif tool_name == "run_agent_evaluation":
             if not EVALUATION_AVAILABLE:
                 return MCPToolResult(
@@ -5491,10 +5662,13 @@ async def _execute_tool_impl(tool_name: str, arguments: Dict[str, Any]) -> MCPTo
             tool_calls = arguments.get("tool_calls", [])
             tool_definitions = arguments.get("tool_definitions")
             system_message = arguments.get("system_message", "")
+            context = arguments.get("context", "")
             thresholds = arguments.get("thresholds", {
                 "intent_resolution": 3,
                 "tool_call_accuracy": 3,
-                "task_adherence": 3
+                "task_adherence": 3,
+                "groundedness": 3,
+                "relevance": 3
             })
             
             if not query or not response:
@@ -5585,6 +5759,53 @@ async def _execute_tool_impl(tool_name: str, arguments: Dict[str, Any]) -> MCPTo
                     results["evaluations"]["task_adherence"] = {"error": str(e), "passed": False}
                     results["all_passed"] = False
                 
+                # Run GroundednessEvaluator (if context provided)
+                if context:
+                    try:
+                        groundedness_eval = GroundednessEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
+                        ground_result = groundedness_eval(query=query, response=response, context=context)
+                        ground_score = ground_result.get("groundedness", 0)
+                        if isinstance(ground_score, str):
+                            try:
+                                ground_score = int(float(ground_score))
+                            except (ValueError, TypeError):
+                                ground_score = 0
+                        results["evaluations"]["groundedness"] = {
+                            "score": ground_score,
+                            "threshold": thresholds.get("groundedness", 3),
+                            "passed": ground_score >= thresholds.get("groundedness", 3),
+                            "explanation": ground_result.get("groundedness_reason", "")
+                        }
+                        if not results["evaluations"]["groundedness"]["passed"]:
+                            results["all_passed"] = False
+                    except Exception as e:
+                        results["evaluations"]["groundedness"] = {"error": str(e), "passed": False}
+                        results["all_passed"] = False
+                else:
+                    results["evaluations"]["groundedness"] = {"skipped": True, "reason": "No context provided"}
+                
+                # Run RelevanceEvaluator
+                try:
+                    relevance_eval = RelevanceEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
+                    rel_result = relevance_eval(query=query, response=response)
+                    rel_score = rel_result.get("relevance", 0)
+                    if isinstance(rel_score, str):
+                        try:
+                            rel_score = int(float(rel_score))
+                        except (ValueError, TypeError):
+                            rel_score = 0
+                    results["evaluations"]["relevance"] = {
+                        "score": rel_score,
+                        "threshold": thresholds.get("relevance", 3),
+                        "passed": rel_score >= thresholds.get("relevance", 3),
+                        "explanation": rel_result.get("relevance_reason", "")
+                    }
+                    if not results["evaluations"]["relevance"]["passed"]:
+                        results["all_passed"] = False
+                except Exception as e:
+                    results["evaluations"]["relevance"] = {"error": str(e), "passed": False}
+                    results["all_passed"] = False
+                
                 return MCPToolResult(
                     content=[{
                         "type": "text",
@@ -5615,7 +5836,9 @@ async def _execute_tool_impl(tool_name: str, arguments: Dict[str, Any]) -> MCPTo
             thresholds = arguments.get("thresholds", {
                 "intent_resolution": 3,
                 "tool_call_accuracy": 3,
-                "task_adherence": 3
+                "task_adherence": 3,
+                "groundedness": 3,
+                "relevance": 3
             })
             
             if not evaluation_data:
@@ -5640,6 +5863,8 @@ async def _execute_tool_impl(tool_name: str, arguments: Dict[str, Any]) -> MCPTo
                 intent_eval = IntentResolutionEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
                 tool_eval = ToolCallAccuracyEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
                 task_eval = TaskAdherenceEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
+                groundedness_eval = GroundednessEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
+                relevance_eval = RelevanceEvaluator(model_config=model_config, credential=credential, is_reasoning_model=True)
                 
                 # Default tool definitions
                 default_tool_defs = [
@@ -5650,12 +5875,15 @@ async def _execute_tool_impl(tool_name: str, arguments: Dict[str, Any]) -> MCPTo
                 intent_scores = []
                 tool_scores = []
                 task_passes = []
+                ground_scores = []
+                relevance_scores = []
                 
                 for idx, item in enumerate(evaluation_data):
                     query = item.get("query", "")
                     response = item.get("response", "")
                     tool_calls = item.get("tool_calls", [])
                     system_message = item.get("system_message", "")
+                    context = item.get("context", "")
                     
                     row_result = {
                         "index": idx,
@@ -5717,6 +5945,41 @@ async def _execute_tool_impl(tool_name: str, arguments: Dict[str, Any]) -> MCPTo
                     except Exception as e:
                         row_result["task_adherence"] = {"error": str(e)}
                     
+                    # Groundedness (if context provided)
+                    if context:
+                        try:
+                            ground_result = groundedness_eval(query=query, response=response, context=context)
+                            score = ground_result.get("groundedness", 0)
+                            if isinstance(score, str):
+                                try:
+                                    score = int(float(score))
+                                except (ValueError, TypeError):
+                                    score = 0
+                            ground_scores.append(score)
+                            row_result["groundedness"] = {
+                                "score": score,
+                                "passed": score >= thresholds.get("groundedness", 3)
+                            }
+                        except Exception as e:
+                            row_result["groundedness"] = {"error": str(e)}
+                    
+                    # Relevance
+                    try:
+                        rel_result = relevance_eval(query=query, response=response)
+                        score = rel_result.get("relevance", 0)
+                        if isinstance(score, str):
+                            try:
+                                score = int(float(score))
+                            except (ValueError, TypeError):
+                                score = 0
+                        relevance_scores.append(score)
+                        row_result["relevance"] = {
+                            "score": score,
+                            "passed": score >= thresholds.get("relevance", 3)
+                        }
+                    except Exception as e:
+                        row_result["relevance"] = {"error": str(e)}
+                    
                     all_results.append(row_result)
                 
                 # Calculate aggregate metrics
@@ -5746,6 +6009,22 @@ async def _execute_tool_impl(tool_name: str, arguments: Dict[str, Any]) -> MCPTo
                         "pass_rate": round(sum(task_passes) / len(task_passes) * 100, 1),
                         "passed_count": sum(task_passes),
                         "failed_count": len(task_passes) - sum(task_passes)
+                    }
+                
+                if ground_scores:
+                    summary["metrics"]["groundedness"] = {
+                        "average_score": round(sum(ground_scores) / len(ground_scores), 2),
+                        "pass_rate": round(sum(1 for s in ground_scores if s >= thresholds.get("groundedness", 3)) / len(ground_scores) * 100, 1),
+                        "min": min(ground_scores),
+                        "max": max(ground_scores)
+                    }
+                
+                if relevance_scores:
+                    summary["metrics"]["relevance"] = {
+                        "average_score": round(sum(relevance_scores) / len(relevance_scores), 2),
+                        "pass_rate": round(sum(1 for s in relevance_scores if s >= thresholds.get("relevance", 3)) / len(relevance_scores) * 100, 1),
+                        "min": min(relevance_scores),
+                        "max": max(relevance_scores)
                     }
                 
                 return MCPToolResult(

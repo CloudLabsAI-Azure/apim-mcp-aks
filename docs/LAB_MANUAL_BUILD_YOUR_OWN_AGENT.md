@@ -163,15 +163,3 @@ Establish baseline evaluations, fine-tune with Agent Lightning, re-evaluate to v
 **[Full Exercise →](exercises/exercise_04_fine_tune_agent_evaluations.md)**
 
 ---
-
-## Optional Exercises
-
-For advanced topics, explore the optional exercises:
-
-| Exercise | Duration | Description |
-|----------|----------|-------------|
-| [External Agents MCP Integration](exercises-optional/exercise_external_agents_mcp_integration.md) | 2 hrs | Integrate OpenAI Assistants, AWS Bedrock, Google Vertex AI with Azure governance |
-| [Fabric Data Agents](exercises-optional/exercise_fabric_data_agents.md) | 2 hrs | Build agents that query Fabric Lakehouses, Warehouses, and Semantic Models |
-| [Agent Red Teaming](exercises-optional/exercise_agents_redteaming.md) | 2 hrs | Red team your agents using Microsoft's PyRIT framework |
-| [SRE Agent](exercises-optional/exercise_sre_agent.md) | 1 hr | Build an SRE agent for automated monitoring, diagnosis, and remediation |
-| [Azure Copilot Integration](exercises-optional/exercise_azure_copilot.md) | 1 hr | Integrate your agents with Azure Copilot for natural language interaction and orchestration |

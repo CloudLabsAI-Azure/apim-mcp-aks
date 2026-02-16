@@ -439,9 +439,9 @@ You have completed the fine-tuning and evaluation exercise:
 
 You've completed the **Build Your Own Agent** lab! Through 4 exercises, you:
 
-1. ✅ **Reviewed** the lab objectives, solution architecture, and exercise structure
-2. ✅ **Built** both autonomous and human-in-the-loop agents using GitHub Copilot with SpecKit
-3. ✅ **Reviewed** governance, memory, observability, and security end-to-end
+1. ✅ **Reviewed** the lab objectives and solution architecture
+2. ✅ **Built** an autonomous agent using GitHub Copilot with SpecKit
+3. ✅ **Reviewed** security, governance, memory, and observability
 4. ✅ **Fine-tuned and evaluated** your agent using Agent Lightning with reinforcement learning and the Azure AI Evaluation SDK
 
 Your agents now benefit from:

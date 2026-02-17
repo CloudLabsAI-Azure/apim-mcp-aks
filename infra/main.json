@@ -187,6 +187,13 @@
         "description": "Fabric workspace ID for data agents (optional - can be created separately)"
       }
     },
+    "fabricPrivateLinkServiceId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Resource ID of the Fabric Private Link Service (Microsoft.Fabric/privateLinkServicesForFabric). Required only if you want to deploy the Fabric/OneLake private endpoint."
+      }
+    },
     "agentIdentityEnabled": {
       "type": "bool",
       "defaultValue": true,
@@ -7009,7 +7016,7 @@
       ]
     },
     "fabricPrivateEndpoint": {
-      "condition": "[and(parameters('fabricEnabled'), parameters('vnetEnabled'))]",
+      "condition": "[and(parameters('fabricEnabled'), parameters('vnetEnabled'), not(empty(parameters('fabricPrivateLinkServiceId'))))]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "fabricPrivateEndpoint",
@@ -7031,7 +7038,7 @@
           },
           "subnetName": "[if(parameters('vnetEnabled'), createObject('value', variables('serviceVirtualNetworkPrivateEndpointSubnetName')), createObject('value', ''))]",
           "fabricCapacityId": {
-            "value": "[reference('fabricCapacity').outputs.id.value]"
+            "value": "[parameters('fabricPrivateLinkServiceId')]"
           },
           "fabricCapacityName": {
             "value": "[variables('fabricResourceName')]"

@@ -44,6 +44,9 @@
     "fabricWorkspaceId": {
       "value": "${FABRIC_WORKSPACE_ID=}"
     },
+    "fabricPrivateLinkServiceId": {
+      "value": "${FABRIC_PRIVATE_LINK_SERVICE_ID=}"
+    },
     "defenderEnabled": {
       "value": "${DEFENDER_ENABLED=true}"
     },

@@ -4,23 +4,23 @@
         "Language": "English",
         "Files": [
             {
-                "RawFilePath": "https://raw.githubusercontent.com/microsoft/azure-agents-control-plane/refs/heads/main/docs/LAB_MANUAL_BUILD_YOUR_OWN_AGENT.md",
+                "RawFilePath": "https://raw.githubusercontent.com/CloudLabsAI-Azure/azure-agents-control-plane/refs/heads/main/docs/LAB_MANUAL_BUILD_YOUR_OWN_AGENT.md",
                 "Order": 1
             },
              {
-                "RawFilePath": "https://raw.githubusercontent.com/microsoft/azure-agents-control-plane/refs/heads/main/docs/exercises/exercise_01_lab_intro.md",
+                "RawFilePath": "https://raw.githubusercontent.com/CloudLabsAI-Azure/azure-agents-control-plane/refs/heads/main/docs/exercises/exercise_01_lab_intro.md",
                 "Order": 2
             },
             {
-                "RawFilePath": "https://raw.githubusercontent.com/microsoft/azure-agents-control-plane/refs/heads/main/docs/exercises/exercise_02_build_agents.md",
+                "RawFilePath": "https://raw.githubusercontent.com/CloudLabsAI-Azure/azure-agents-control-plane/refs/heads/main/docs/exercises/exercise_02_build_agents.md",
                 "Order": 3
             }, 
             {
-                "RawFilePath": "https://raw.githubusercontent.com/microsoft/azure-agents-control-plane/refs/heads/main/docs/exercises/exercise_03_review_agents_control_plane.md",
+                "RawFilePath": "https://raw.githubusercontent.com/CloudLabsAI-Azure/azure-agents-control-plane/refs/heads/main/docs/exercises/exercise_03_review_agents_control_plane.md",
                 "Order": 4
             },    
             {
-                "RawFilePath": "https://raw.githubusercontent.com/microsoft/azure-agents-control-plane/refs/heads/main/docs/exercises/exercise_04_fine_tune_agent_evaluations.md",
+                "RawFilePath": "https://raw.githubusercontent.com/CloudLabsAI-Azure/azure-agents-control-plane/refs/heads/main/docs/exercises/exercise_04_fine_tune_agent_evaluations.md",
                 "Order": 5
             }
         ]

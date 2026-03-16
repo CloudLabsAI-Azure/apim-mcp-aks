@@ -22,10 +22,6 @@
             {
                 "RawFilePath": "https://raw.githubusercontent.com/CloudLabsAI-Azure/azure-agents-control-plane/refs/heads/main/docs/exercises/exercise_03_review_agents_control_plane.md",
                 "Order": 5
-            },    
-            {
-                "RawFilePath": "https://raw.githubusercontent.com/CloudLabsAI-Azure/azure-agents-control-plane/refs/heads/main/docs/exercises/exercise_04_fine_tune_agent_evaluations.md",
-                "Order": 6
             }
         ]
     }
